@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GPU 集群监控面板 Lite</title>
+  
+  <!-- Element Plus CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Element Plus JS -->
+  <script src="https://unpkg.com/element-plus"></script>
+  <!-- Element Plus Icons -->
+  <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+
+  <style>
+    :root {
+      --bg-color: #f5f7fa;
+      --card-bg: #ffffff;
+      --primary-color: #409eff;
+      --text-main: #2c3e50;
+      --text-secondary: #606266;
+      --text-light: #909399;
+      --radius-base: 12px;
+      --shadow-base: 0 4px 20px rgba(0, 0, 0, 0.04);
+      --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08);
+    }
+
+    body {
+      margin: 0;
+      padding: 24px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    /* 顶部导航栏 */
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: var(--card-bg);
+      padding: 16px 30px;
+      border-radius: var(--radius-base);
+      box-shadow: var(--shadow-base);
+      margin-bottom: 24px;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .header-title {
+      font-size: 22px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #303133;
+    }
+
+    /* 通用卡片 */
+    .dashboard-card {
+      background: var(--card-bg);
+      border-radius: var(--radius-base);
+      padding: 24px;
+      height: 100%;
+      box-sizing: border-box;
+      box-shadow: var(--shadow-base);
+      border: 1px solid rgba(255,255,255,0.5);
+      transition: all 0.3s ease;
+    }
+    .dashboard-card:hover {
+      box-shadow: var(--shadow-hover);
+      transform: translateY(-2px);
+    }
+
+    /* 系统指标区域 */
+    .metric-group {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 100%;
+    }
+    .metric-info {
+      flex: 1;
+      padding-right: 16px;
+    }
+    .metric-label {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      font-weight: 600;
+    }
+    .metric-value-big {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text-main);
+      line-height: 1.2;
+    }
+    .metric-sub {
+      font-size: 13px;
+      color: var(--text-light);
+      margin-top: 4px;
+      white-space: nowrap;
+    }
+    .network-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 14px;
+    }
+    .network-item:last-child {
+      margin-bottom: 0;
+    }
+
+    /* GPU 卡片 */
+    .gpu-card {
+      margin-bottom: 24px;
+    }
+    .gpu-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid #f2f6fc;
+    }
+    .gpu-title-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .gpu-index-badge {
+      background: #303133;
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 6px;
+      font-weight: 700;
+      font-size: 14px;
+    }
+    .gpu-name {
+      font-size: 18px;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+
+    /* GPU 详情网格 */
+    .gpu-details-grid {
+      display: grid;
+      grid-template-columns: 1.5fr 1fr; 
+      gap: 40px;
+      align-items: center; /* 垂直居中 */
+    }
+    
+    /* 进度条区域 */
+    .progress-section {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .progress-label-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-secondary);
+    }
+    .progress-val {
+      color: var(--text-main);
+      font-weight: 700;
+    }
+
+    /* 传感器小方块区域 */
+    .sensor-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr); /* 改为3列 */
+      gap: 16px;
+    }
+    .sensor-item {
+      background: #f8fafc;
+      padding: 16px;
+      border-radius: 8px;
+      text-align: center;
+      transition: background 0.3s;
+    }
+    .sensor-item:hover {
+      background: #f0f4f8;
+    }
+    .sensor-value {
+      font-size: 20px;
+      font-weight: 700;
+      color: var(--text-main);
+      margin-bottom: 4px;
+    }
+    .sensor-key {
+      font-size: 12px;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Element Plus 覆盖样式 */
+    .el-progress-bar__outer {
+      background-color: #ebeef5 !important;
+    }
+    .el-tag {
+      border: none;
+      font-weight: 600;
+      font-size: 14px;
+    }
+
+    [v-cloak] { display: none; }
+    
+    /* 响应式 */
+    @media (max-width: 992px) {
+      .gpu-details-grid { grid-template-columns: 1fr; gap: 24px; }
+      .sensor-grid { grid-template-columns: repeat(3, 1fr); }
+    }
+    @media (max-width: 768px) {
+      .sensor-grid { grid-template-columns: repeat(2, 1fr); } /* 手机端2列 */
+      .header-bar { flex-direction: column; align-items: stretch; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app" class="container" v-cloak>
+    
+    <!-- 头部栏 -->
+    <div class="header-bar">
+      <div class="header-title">
+        <el-icon :size="26" color="#409eff"><Monitor /></el-icon>
+        <span>GPU 监控看板</span>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span v-if="lastUpdateTime" style="font-size: 13px; color: #909399; margin-right: 8px;">
+          更新于 {{ lastUpdateTime }}
+        </span>
+        
+        <el-select v-model="selectedServerId" placeholder="选择节点" style="width: 180px;" @change="handleServerChange">
+          <el-option v-for="srv in servers" :key="srv.id" :label="srv.name" :value="srv.id"></el-option>
+        </el-select>
+        
+        <div style="display: flex; align-items: center; background: #f4f4f5; padding: 0 12px; height: 32px; border-radius: 4px;">
+            <span style="font-size: 13px; color: #606266; margin-right: 8px;">自动刷新</span>
+            <el-switch v-model="autoRefresh" size="small" @change="toggleAutoRefresh" />
+        </div>
+
+        <el-button type="primary" :icon="RefreshIcon" :loading="loading && !currentData" @click="refreshCurrent" circle></el-button>
+      </div>
+    </div>
+
+    <!-- 错误提示 -->
+    <div v-if="!loading && servers.length === 0" style="margin-bottom: 20px;">
+        <el-alert title="无法连接" description="未找到服务器配置，请检查 config.json" type="error" show-icon />
+    </div>
+
+    <!-- 主内容 -->
+    <div v-if="currentData">
+      
+      <!-- 系统概览 (3列布局) -->
+      <el-row :gutter="24" style="margin-bottom: 24px;">
+        <!-- CPU -->
+        <el-col :md="8" :sm="12" :xs="24" style="margin-bottom: 16px;">
+          <div class="dashboard-card">
+            <div class="metric-group">
+                <div class="metric-info">
+                    <div class="metric-label">CPU 负载</div>
+                    <div class="metric-value-big">{{ safeNumber(currentData.system.cpu.percent).toFixed(1) }}%</div>
+                    <div class="metric-sub">
+                        {{ currentData.system.cpu.count }} 核心 / {{ (currentData.system.cpu.frequency_current/1000).toFixed(1) }} GHz
+                    </div>
+                </div>
+                <el-progress type="circle" :width="70" :stroke-width="8" :percentage="safeNumber(currentData.system.cpu.percent)" :show-text="false" :color="colors" />
+            </div>
+          </div>
+        </el-col>
+        
+        <!-- 内存 -->
+        <el-col :md="8" :sm="12" :xs="24" style="margin-bottom: 16px;">
+          <div class="dashboard-card">
+            <div class="metric-group">
+                <div class="metric-info">
+                    <div class="metric-label">内存使用</div>
+                    <div class="metric-value-big">{{ safeNumber(currentData.system.memory.percent).toFixed(1) }}%</div>
+                    <div class="metric-sub">
+                        {{ formatBytes(currentData.system.memory.used) }} / {{ formatBytes(currentData.system.memory.total) }}
+                    </div>
+                </div>
+                <el-progress type="circle" :width="70" :stroke-width="8" :percentage="safeNumber(currentData.system.memory.percent)" :show-text="false" :color="colors" />
+            </div>
+          </div>
+        </el-col>
+
+        <!-- 网络与统计 -->
+        <el-col :md="8" :sm="24" :xs="24" style="margin-bottom: 16px;">
+            <div class="dashboard-card" style="display: flex; flex-direction: column; justify-content: center;">
+                <div class="network-item">
+                    <span style="color: #606266;"><el-icon style="vertical-align: middle; margin-right: 4px;"><Download /></el-icon> 网络下行</span>
+                    <span style="font-weight: 600;">{{ formatBytes(currentData.system.network.bytes_recv) }}</span>
+                </div>
+                <div class="network-item">
+                    <span style="color: #606266;"><el-icon style="vertical-align: middle; margin-right: 4px;"><Upload /></el-icon> 网络上行</span>
+                    <span style="font-weight: 600;">{{ formatBytes(currentData.system.network.bytes_sent) }}</span>
+                </div>
+                <div class="network-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed #e4e7ed;">
+                    <span style="color: #606266;">GPU 在线数量</span>
+                    <el-tag size="small" type="success" effect="light">{{ gpuList.length }} 卡</el-tag>
+                </div>
+            </div>
+        </el-col>
+      </el-row>
+
+    <!-- GPU 列表 -->
+      <div v-for="gpu in gpuList" :key="gpu.uuid || gpu.index" class="dashboard-card gpu-card">
+        <!-- GPU 头部 -->
+        <div class="gpu-header">
+            <div class="gpu-title-box">
+                <span class="gpu-index-badge">#{{ gpu.index }}</span>
+                <span class="gpu-name">{{ gpu.name }}</span>
+            </div>
+            <div>
+                <!-- 纯数字温度 -->
+                <el-tag :type="getTempStatus(gpu.temperature)" effect="dark" round>
+                   {{ gpu.temperature }}°C
+                </el-tag>
+            </div>
+        </div>
+
+        <!-- GPU 详情主体 -->
+        <div class="gpu-details-grid">
+            <!-- 左侧：显存与利用率 -->
+            <div class="progress-section">
+                <div>
+                    <div class="progress-label-row">
+                        <span>显存 (VRAM)</span>
+                        <span class="progress-val">{{ gpu.memory.used_gb.toFixed(1) }} / {{ gpu.memory.total_gb.toFixed(1) }} GB</span>
+                    </div>
+                    <!-- 使用修改后的 calcMemoryPercent (返回整数) -->
+                    <el-progress 
+                        :percentage="calcMemoryPercent(gpu)" 
+                        :stroke-width="18" 
+                        :color="colors"
+                        :text-inside="true"
+                    />
+                </div>
+                <div>
+                    <div class="progress-label-row">
+                        <span>核心利用率</span>
+                        <span class="progress-val">{{ gpu.utilization.gpu }}%</span>
+                    </div>
+                    <!-- 核心利用率通常 API 已返回整数，如果不是也可以加 Math.round -->
+                    <el-progress 
+                        :percentage="Math.round(gpu.utilization.gpu)" 
+                        :stroke-width="18" 
+                        status="success"
+                        :text-inside="true"
+                    />
+                </div>
+            </div>
+
+            <!-- 右侧：传感器数据 -->
+            <div class="sensor-grid">
+                <div class="sensor-item">
+                    <div class="sensor-value">{{ (gpu.power.usage / 1000).toFixed(0) }} W</div>
+                    <div class="sensor-key">实时功耗</div>
+                </div>
+                <div class="sensor-item">
+                    <div class="sensor-value">{{ gpu.fan_speed }}%</div>
+                    <div class="sensor-key">风扇转速</div>
+                </div>
+                <div class="sensor-item">
+                    <!-- 显示整数百分比 -->
+                    <div class="sensor-value" :class="getValColorClass(calcMemoryPercent(gpu))">
+                        {{ calcMemoryPercent(gpu) }}%
+                    </div>
+                    <div class="sensor-key">显存占比</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 新增：进程列表 (折叠面板) -->
+        <div style="margin-top: 24px; border-top: 1px solid #f2f6fc; padding-top: 12px;">
+            <el-collapse>
+                <el-collapse-item :title="`活跃进程 (${gpu.processes ? gpu.processes.length : 0})`" name="1">
+                    <el-table 
+                        :data="gpu.processes" 
+                        style="width: 100%" 
+                        size="small"
+                        empty-text="无活跃进程"
+                    >
+                        <el-table-column prop="pid" label="PID" width="80"></el-table-column>
+                        <el-table-column prop="username" label="用户" width="100"></el-table-column>
+                        <el-table-column prop="name" label="进程名" width="140" show-overflow-tooltip></el-table-column>
+                        <el-table-column label="显存占用" width="100">
+                            <template #default="scope">
+                                {{ formatBytes(scope.row.gpu_memory) }}
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="command" label="命令" min-width="180" show-overflow-tooltip>
+                            <template #default="scope">
+                                <span style="font-family: monospace; color: #666;">{{ scope.row.command }}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-collapse-item>
+            </el-collapse>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- 初始加载状态 -->
+    <div v-else style="padding: 40px 0;">
+        <el-skeleton :rows="3" animated style="margin-bottom: 20px;" />
+        <el-skeleton :rows="6" animated />
+    </div>
+
+  </div>
+
+  <script>
+    const { createApp, ref, computed, onMounted, onUnmounted, shallowRef } = Vue;
+    const { Monitor, Refresh, Loading, Download, Upload } = ElementPlusIconsVue;
+
+    const app = createApp({
+      components: { Monitor, Loading, Download, Upload },
+      setup() {
+        const RefreshIcon = shallowRef(Refresh);
+        
+        // 核心数据
+        const servers = ref([]);
+        const selectedServerId = ref(null);
+        const currentData = ref(null);
+        const loading = ref(true);
+        const lastUpdateTime = ref('');
+        const autoRefresh = ref(false);
+        const refreshTimer = ref(null);
+
+        // 颜色阈值
+        const colors = [
+          { color: '#67c23a', percentage: 60 },
+          { color: '#e6a23c', percentage: 85 },
+          { color: '#f56c6c', percentage: 100 },
+        ];
+
+        // 计算属性
+        const selectedServer = computed(() => servers.value.find(s => s.id === selectedServerId.value));
+        const gpuList = computed(() => currentData.value?.gpu?.gpus || []);
+
+        // 工具函数
+        const safeNumber = (val) => val === undefined || val === null ? 0 : Number(val);
+        
+        const formatBytes = (bytes) => {
+            if (!+bytes) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+        };
+
+        const getTempStatus = (temp) => {
+            if (temp < 65) return 'success';
+            if (temp < 82) return 'warning';
+            return 'danger';
+        };
+
+        const getValColorClass = (val) => {
+            if (val > 85) return 'text-danger';
+            if (val > 60) return 'text-warning';
+            return 'text-success';
+        };
+
+        // 核心修复：手动计算显存百分比，不依赖 API 的 percent 字段
+        const calcMemoryPercent = (gpu) => {
+            if (!gpu || !gpu.memory || !gpu.memory.total) return 0;
+            // 使用 used / total 计算，确保准确性
+            const pct = (gpu.memory.used / gpu.memory.total) * 100;
+            // 限制在 0-100 之间
+            return Math.round(Math.min(Math.max(pct, 0), 100));
+        };
+
+        // 数据逻辑
+        const loadConfig = async () => {
+          try {
+            const response = await fetch('config.json');
+            if (!response.ok) throw new Error('Config load error');
+            const config = await response.json();
+            servers.value = config.servers || [];
+            if (servers.value.length > 0) {
+              selectedServerId.value = servers.value[0].id;
+              await loadSelectedServerData();
+            }
+          } catch (error) {
+            console.error(error);
+            ElementPlus.ElMessage.error('无法加载配置文件');
+          } finally {
+            loading.value = false;
+          }
+        };
+
+        const loadSelectedServerData = async () => {
+          if (!selectedServer.value) return;
+          
+          if (!currentData.value) {
+            loading.value = true;
+          }
+
+          try {
+            const url = `${selectedServer.value.url}/api/status`;
+            const response = await fetch(url);
+            const result = await response.json();
+            
+            if (result.code === 200) {
+              currentData.value = result.data;
+              lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+            } else {
+              // 只有出错且没有旧数据时，才抛出错误提示，避免干扰自动刷新
+              console.warn(result.msg);
+            }
+          } catch (error) {
+            console.error(error);
+            // 仅在手动刷新或首次加载失败时提示
+            if (!autoRefresh.value) {
+                ElementPlus.ElMessage.warning(`连接失败: ${error.message}`);
+            }
+          } finally {
+            // 无论成功失败，关闭 loading
+            loading.value = false;
+          }
+        };
+
+        const handleServerChange = () => {
+            // ⚠️ 不要清空 currentData，避免页面闪烁
+            // currentData.value = null;  // ❌ 删除这行
+            
+            // 清除旧的定时器
+            if (refreshTimer.value) {
+                clearInterval(refreshTimer.value);
+                refreshTimer.value = null;
+            }
+            
+            // 立即加载新服务器数据
+            loadSelectedServerData();
+            
+            // 如果开启了自动刷新，重新设置定时器
+            if (autoRefresh.value) {
+                refreshTimer.value = setInterval(loadSelectedServerData, 3000);
+            }
+        };
+
+        const refreshCurrent = () => {
+            loadSelectedServerData();
+        };
+
+        const toggleAutoRefresh = (val) => {
+            // 先清除旧的定时器
+            if (refreshTimer.value) {
+                clearInterval(refreshTimer.value);
+                refreshTimer.value = null;
+            }
+            
+            if (val) {      
+                // 只设置定时器
+                refreshTimer.value = setInterval(loadSelectedServerData, 3000);
+            }
+        };
+
+        onMounted(() => {
+          loadConfig();
+        });
+
+        onUnmounted(() => {
+            if (refreshTimer.value) clearInterval(refreshTimer.value);
+        });
+
+        return {
+          servers,
+          selectedServerId,
+          currentData,
+          loading,
+          lastUpdateTime,
+          gpuList,
+          autoRefresh,
+          colors,
+          RefreshIcon,
+          safeNumber,
+          formatBytes,
+          getTempStatus,
+          getValColorClass,
+          calcMemoryPercent,
+          refreshCurrent,
+          handleServerChange,
+          toggleAutoRefresh
+        };
+      }
+    });
+
+    app.use(ElementPlus);
+    app.mount('#app');
+  </script>
+  
+  <style>
+      .text-danger { color: #f56c6c; }
+      .text-warning { color: #e6a23c; }
+      .text-success { color: #67c23a; }
+  </style>
+</body>
+</html>

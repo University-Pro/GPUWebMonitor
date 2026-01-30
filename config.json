@@ -1,0 +1,14 @@
+{
+  "servers": [
+    {
+      "id": "server1",
+      "name": "白色服务器",
+      "url": "http://localhost:5000"
+    },
+    {
+      "id": "server2",
+      "name": "席老师4090D服务器",
+      "url": "http://192.168.1.101:5000"
+    }
+  ]
+}
