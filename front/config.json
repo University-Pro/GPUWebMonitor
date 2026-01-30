@@ -2,12 +2,12 @@
   "servers": [
     {
       "id": "server1",
-      "name": "白色服务器",
-      "url": "http://localhost:5000"
+      "name": "2080Ti服务器",
+      "url": "http://192.168.30.246:25520"
     },
     {
       "id": "server2",
-      "name": "5090服务器",
+      "name": "5090D服务器",
       "url": "http://172.17.175.247:5000"
     }
   ]

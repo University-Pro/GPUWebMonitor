@@ -489,7 +489,8 @@
         // 数据逻辑
         const loadConfig = async () => {
           try {
-            const response = await fetch('config.json');
+            // 改为请求本地后端的接口
+            const response = await fetch('/api/config');
             if (!response.ok) throw new Error('Config load error');
             const config = await response.json();
             servers.value = config.servers || [];
@@ -499,7 +500,7 @@
             }
           } catch (error) {
             console.error(error);
-            ElementPlus.ElMessage.error('无法加载配置文件');
+            ElementPlus.ElMessage.error('无法加载服务器列表');
           } finally {
             loading.value = false;
           }
@@ -513,7 +514,11 @@
           }
 
           try {
-            const url = `${selectedServer.value.url}/api/status`;
+            // --- 核心修改 ---
+            // 以前: const url = `${selectedServer.value.url}/api/status`;
+            // 现在: 访问 dashboard.py 的代理接口，传递 server id
+            const url = `/api/proxy?id=${selectedServerId.value}`;
+            
             const response = await fetch(url);
             const result = await response.json();
             
@@ -521,25 +526,23 @@
               currentData.value = result.data;
               lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN', {hour12: false});
             } else {
-              // 只有出错且没有旧数据时，才抛出错误提示，避免干扰自动刷新
               console.warn(result.msg);
+              // 如果代理返回后端连接失败，可以在界面提示一下
+              if(result.code === 502) {
+                  // 可选：显示连接断开状态
+              }
             }
           } catch (error) {
             console.error(error);
-            // 仅在手动刷新或首次加载失败时提示
             if (!autoRefresh.value) {
-                ElementPlus.ElMessage.warning(`连接失败: ${error.message}`);
+                ElementPlus.ElMessage.warning(`获取数据失败: ${error.message}`);
             }
           } finally {
-            // 无论成功失败，关闭 loading
             loading.value = false;
           }
         };
 
         const handleServerChange = () => {
-            // ⚠️ 不要清空 currentData，避免页面闪烁
-            // currentData.value = null;  // ❌ 删除这行
-            
             // 清除旧的定时器
             if (refreshTimer.value) {
                 clearInterval(refreshTimer.value);

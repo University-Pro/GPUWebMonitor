@@ -1,0 +1,53 @@
+version: '3.8'
+
+services:
+  # Agent服务示例 - 实际部署时每个被监控服务器运行一个实例
+  # 注意：实际生产环境中，每个被监控服务器都需要运行一个agent服务
+  agent-example:
+    build: ./backend
+    container_name: servermonitor-agent-example
+    ports:
+      - "5000:5000"
+    environment:
+      - SERVER_NAME=示例服务器
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./backend/data:/app/data  # 持久化历史数据
+    restart: unless-stopped
+    networks:
+      - monitor-net
+
+  # Dashboard服务（中央监控面板 + 前端界面）
+  # 使用同一个Dockerfile，但运行dashboard.py
+  dashboard:
+    build: ./backend
+    container_name: servermonitor-dashboard
+    ports:
+      - "8080:8080"
+    environment:
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./front:/app/front  # 挂载前端文件
+      - ./backend/dashboard.py:/app/dashboard.py  # 挂载dashboard脚本
+    command: python dashboard.py
+    depends_on:
+      - agent-example
+    restart: unless-stopped
+    networks:
+      - monitor-net
+
+networks:
+  monitor-net:
+    driver: bridge
+
+# 使用说明：
+# 1. 修改front/config.json中的agent地址（如http://agent-example:5000）
+# 2. 启动服务：docker-compose up -d
+# 3. 访问监控面板：http://localhost:8080
+# 4. 查看agent示例数据：http://localhost:5000/api/status
+
+# 多服务器配置示例：
+# 在实际部署中，每个被监控服务器需要：
+# 1. 运行agent服务（可修改端口避免冲突）
+# 2. 在front/config.json中添加服务器配置
+# 3. 确保网络连通性
