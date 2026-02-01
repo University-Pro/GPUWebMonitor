@@ -7,227 +7,15 @@
   
   <!-- Element Plus CSS -->
   <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+  <!-- 自定义样式 -->
+  <link rel="stylesheet" href="style.css" />
+
   <!-- Vue 3 -->
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
   <!-- Element Plus JS -->
   <script src="https://unpkg.com/element-plus"></script>
   <!-- Element Plus Icons -->
   <script src="https://unpkg.com/@element-plus/icons-vue"></script>
-
-  <style>
-    :root {
-      --bg-color: #f5f7fa;
-      --card-bg: #ffffff;
-      --primary-color: #409eff;
-      --text-main: #2c3e50;
-      --text-secondary: #606266;
-      --text-light: #909399;
-      --radius-base: 12px;
-      --shadow-base: 0 4px 20px rgba(0, 0, 0, 0.04);
-      --shadow-hover: 0 8px 30px rgba(0, 0, 0, 0.08);
-    }
-
-    body {
-      margin: 0;
-      padding: 24px;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      background-color: var(--bg-color);
-      color: var(--text-main);
-      -webkit-font-smoothing: antialiased;
-    }
-
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
-    /* 顶部导航栏 */
-    .header-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      background: var(--card-bg);
-      padding: 16px 30px;
-      border-radius: var(--radius-base);
-      box-shadow: var(--shadow-base);
-      margin-bottom: 24px;
-      flex-wrap: wrap;
-      gap: 16px;
-    }
-    .header-title {
-      font-size: 22px;
-      font-weight: 700;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      color: #303133;
-    }
-
-    /* 通用卡片 */
-    .dashboard-card {
-      background: var(--card-bg);
-      border-radius: var(--radius-base);
-      padding: 24px;
-      height: 100%;
-      box-sizing: border-box;
-      box-shadow: var(--shadow-base);
-      border: 1px solid rgba(255,255,255,0.5);
-      transition: all 0.3s ease;
-    }
-    .dashboard-card:hover {
-      box-shadow: var(--shadow-hover);
-      transform: translateY(-2px);
-    }
-
-    /* 系统指标区域 */
-    .metric-group {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      height: 100%;
-    }
-    .metric-info {
-      flex: 1;
-      padding-right: 16px;
-    }
-    .metric-label {
-      font-size: 14px;
-      color: var(--text-secondary);
-      margin-bottom: 8px;
-      font-weight: 600;
-    }
-    .metric-value-big {
-      font-size: 28px;
-      font-weight: 800;
-      color: var(--text-main);
-      line-height: 1.2;
-    }
-    .metric-sub {
-      font-size: 13px;
-      color: var(--text-light);
-      margin-top: 4px;
-      white-space: nowrap;
-    }
-    .network-item {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      font-size: 14px;
-    }
-    .network-item:last-child {
-      margin-bottom: 0;
-    }
-
-    /* GPU 卡片 */
-    .gpu-card {
-      margin-bottom: 24px;
-    }
-    .gpu-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-      padding-bottom: 16px;
-      border-bottom: 1px solid #f2f6fc;
-    }
-    .gpu-title-box {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-    .gpu-index-badge {
-      background: #303133;
-      color: #fff;
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-weight: 700;
-      font-size: 14px;
-    }
-    .gpu-name {
-      font-size: 18px;
-      font-weight: 700;
-      color: var(--text-main);
-    }
-
-    /* GPU 详情网格 */
-    .gpu-details-grid {
-      display: grid;
-      grid-template-columns: 1.5fr 1fr; 
-      gap: 40px;
-      align-items: center; /* 垂直居中 */
-    }
-    
-    /* 进度条区域 */
-    .progress-section {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-    }
-    .progress-label-row {
-      display: flex;
-      justify-content: space-between;
-      margin-bottom: 8px;
-      font-size: 14px;
-      font-weight: 500;
-      color: var(--text-secondary);
-    }
-    .progress-val {
-      color: var(--text-main);
-      font-weight: 700;
-    }
-
-    /* 传感器小方块区域 */
-    .sensor-grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr); /* 改为3列 */
-      gap: 16px;
-    }
-    .sensor-item {
-      background: #f8fafc;
-      padding: 16px;
-      border-radius: 8px;
-      text-align: center;
-      transition: background 0.3s;
-    }
-    .sensor-item:hover {
-      background: #f0f4f8;
-    }
-    .sensor-value {
-      font-size: 20px;
-      font-weight: 700;
-      color: var(--text-main);
-      margin-bottom: 4px;
-    }
-    .sensor-key {
-      font-size: 12px;
-      color: var(--text-light);
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-
-    /* Element Plus 覆盖样式 */
-    .el-progress-bar__outer {
-      background-color: #ebeef5 !important;
-    }
-    .el-tag {
-      border: none;
-      font-weight: 600;
-      font-size: 14px;
-    }
-
-    [v-cloak] { display: none; }
-    
-    /* 响应式 */
-    @media (max-width: 992px) {
-      .gpu-details-grid { grid-template-columns: 1fr; gap: 24px; }
-      .sensor-grid { grid-template-columns: repeat(3, 1fr); }
-    }
-    @media (max-width: 768px) {
-      .sensor-grid { grid-template-columns: repeat(2, 1fr); } /* 手机端2列 */
-      .header-bar { flex-direction: column; align-items: stretch; }
-    }
-  </style>
 </head>
 <body>
   <div id="app" class="container" v-cloak>
@@ -265,7 +53,7 @@
     <!-- 主内容 -->
     <div v-if="currentData">
       
-      <!-- 系统概览 (3列布局) -->
+      <!-- 系统概览 -->
       <el-row :gutter="24" style="margin-bottom: 24px;">
         <!-- CPU -->
         <el-col :md="8" :sm="12" :xs="24" style="margin-bottom: 16px;">
@@ -318,7 +106,7 @@
         </el-col>
       </el-row>
 
-    <!-- GPU 列表 -->
+      <!-- GPU 列表 -->
       <div v-for="gpu in gpuList" :key="gpu.uuid || gpu.index" class="dashboard-card gpu-card">
         <!-- GPU 头部 -->
         <div class="gpu-header">
@@ -343,7 +131,6 @@
                         <span>显存 (VRAM)</span>
                         <span class="progress-val">{{ gpu.memory.used_gb.toFixed(1) }} / {{ gpu.memory.total_gb.toFixed(1) }} GB</span>
                     </div>
-                    <!-- 使用修改后的 calcMemoryPercent (返回整数) -->
                     <el-progress 
                         :percentage="calcMemoryPercent(gpu)" 
                         :stroke-width="18" 
@@ -356,7 +143,6 @@
                         <span>核心利用率</span>
                         <span class="progress-val">{{ gpu.utilization.gpu }}%</span>
                     </div>
-                    <!-- 核心利用率通常 API 已返回整数，如果不是也可以加 Math.round -->
                     <el-progress 
                         :percentage="Math.round(gpu.utilization.gpu)" 
                         :stroke-width="18" 
@@ -377,7 +163,6 @@
                     <div class="sensor-key">风扇转速</div>
                 </div>
                 <div class="sensor-item">
-                    <!-- 显示整数百分比 -->
                     <div class="sensor-value" :class="getValColorClass(calcMemoryPercent(gpu))">
                         {{ calcMemoryPercent(gpu) }}%
                     </div>
@@ -386,7 +171,7 @@
             </div>
         </div>
         
-        <!-- 新增：进程列表 (折叠面板) -->
+        <!-- 进程列表 -->
         <div style="margin-top: 24px; border-top: 1px solid #f2f6fc; padding-top: 12px;">
             <el-collapse>
                 <el-collapse-item :title="`活跃进程 (${gpu.processes ? gpu.processes.length : 0})`" name="1">
@@ -414,7 +199,6 @@
             </el-collapse>
         </div>
       </div>
-
     </div>
 
     <!-- 初始加载状态 -->
@@ -425,194 +209,7 @@
 
   </div>
 
-  <script>
-    const { createApp, ref, computed, onMounted, onUnmounted, shallowRef } = Vue;
-    const { Monitor, Refresh, Loading, Download, Upload } = ElementPlusIconsVue;
-
-    const app = createApp({
-      components: { Monitor, Loading, Download, Upload },
-      setup() {
-        const RefreshIcon = shallowRef(Refresh);
-        
-        // 核心数据
-        const servers = ref([]);
-        const selectedServerId = ref(null);
-        const currentData = ref(null);
-        const loading = ref(true);
-        const lastUpdateTime = ref('');
-        const autoRefresh = ref(false);
-        const refreshTimer = ref(null);
-
-        // 颜色阈值
-        const colors = [
-          { color: '#67c23a', percentage: 60 },
-          { color: '#e6a23c', percentage: 85 },
-          { color: '#f56c6c', percentage: 100 },
-        ];
-
-        // 计算属性
-        const selectedServer = computed(() => servers.value.find(s => s.id === selectedServerId.value));
-        const gpuList = computed(() => currentData.value?.gpu?.gpus || []);
-
-        // 工具函数
-        const safeNumber = (val) => val === undefined || val === null ? 0 : Number(val);
-        
-        const formatBytes = (bytes) => {
-            if (!+bytes) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
-        };
-
-        const getTempStatus = (temp) => {
-            if (temp < 65) return 'success';
-            if (temp < 82) return 'warning';
-            return 'danger';
-        };
-
-        const getValColorClass = (val) => {
-            if (val > 85) return 'text-danger';
-            if (val > 60) return 'text-warning';
-            return 'text-success';
-        };
-
-        // 核心修复：手动计算显存百分比，不依赖 API 的 percent 字段
-        const calcMemoryPercent = (gpu) => {
-            if (!gpu || !gpu.memory || !gpu.memory.total) return 0;
-            // 使用 used / total 计算，确保准确性
-            const pct = (gpu.memory.used / gpu.memory.total) * 100;
-            // 限制在 0-100 之间
-            return Math.round(Math.min(Math.max(pct, 0), 100));
-        };
-
-        // 数据逻辑
-        const loadConfig = async () => {
-          try {
-            // 改为请求本地后端的接口
-            const response = await fetch('/api/config');
-            if (!response.ok) throw new Error('Config load error');
-            const config = await response.json();
-            servers.value = config.servers || [];
-            if (servers.value.length > 0) {
-              selectedServerId.value = servers.value[0].id;
-              await loadSelectedServerData();
-            }
-          } catch (error) {
-            console.error(error);
-            ElementPlus.ElMessage.error('无法加载服务器列表');
-          } finally {
-            loading.value = false;
-          }
-        };
-
-        const loadSelectedServerData = async () => {
-          if (!selectedServer.value) return;
-          
-          if (!currentData.value) {
-            loading.value = true;
-          }
-
-          try {
-            // --- 核心修改 ---
-            // 以前: const url = `${selectedServer.value.url}/api/status`;
-            // 现在: 访问 dashboard.py 的代理接口，传递 server id
-            const url = `/api/proxy?id=${selectedServerId.value}`;
-            
-            const response = await fetch(url);
-            const result = await response.json();
-            
-            if (result.code === 200) {
-              currentData.value = result.data;
-              lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN', {hour12: false});
-            } else {
-              console.warn(result.msg);
-              // 如果代理返回后端连接失败，可以在界面提示一下
-              if(result.code === 502) {
-                  // 可选：显示连接断开状态
-              }
-            }
-          } catch (error) {
-            console.error(error);
-            if (!autoRefresh.value) {
-                ElementPlus.ElMessage.warning(`获取数据失败: ${error.message}`);
-            }
-          } finally {
-            loading.value = false;
-          }
-        };
-
-        const handleServerChange = () => {
-            // 清除旧的定时器
-            if (refreshTimer.value) {
-                clearInterval(refreshTimer.value);
-                refreshTimer.value = null;
-            }
-            
-            // 立即加载新服务器数据
-            loadSelectedServerData();
-            
-            // 如果开启了自动刷新，重新设置定时器
-            if (autoRefresh.value) {
-                refreshTimer.value = setInterval(loadSelectedServerData, 3000);
-            }
-        };
-
-        const refreshCurrent = () => {
-            loadSelectedServerData();
-        };
-
-        const toggleAutoRefresh = (val) => {
-            // 先清除旧的定时器
-            if (refreshTimer.value) {
-                clearInterval(refreshTimer.value);
-                refreshTimer.value = null;
-            }
-            
-            if (val) {      
-                // 只设置定时器
-                refreshTimer.value = setInterval(loadSelectedServerData, 3000);
-            }
-        };
-
-        onMounted(() => {
-          loadConfig();
-        });
-
-        onUnmounted(() => {
-            if (refreshTimer.value) clearInterval(refreshTimer.value);
-        });
-
-        return {
-          servers,
-          selectedServerId,
-          currentData,
-          loading,
-          lastUpdateTime,
-          gpuList,
-          autoRefresh,
-          colors,
-          RefreshIcon,
-          safeNumber,
-          formatBytes,
-          getTempStatus,
-          getValColorClass,
-          calcMemoryPercent,
-          refreshCurrent,
-          handleServerChange,
-          toggleAutoRefresh
-        };
-      }
-    });
-
-    app.use(ElementPlus);
-    app.mount('#app');
-  </script>
-  
-  <style>
-      .text-danger { color: #f56c6c; }
-      .text-warning { color: #e6a23c; }
-      .text-success { color: #67c23a; }
-  </style>
+  <!-- 引入业务逻辑 -->
+  <script src="app.js"></script>
 </body>
 </html>
