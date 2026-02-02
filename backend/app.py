@@ -1,4 +1,3 @@
-# app.py (Agent 端专用版)
 import os
 import sqlite3
 import json
@@ -8,24 +7,24 @@ import logging
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
-
-# 导入监控模块
 import gpu_monitor
 
 # --- 配置 ---
-DB_FILE = 'monitor_data.db'
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DB_FILE = os.path.join(BASE_DIR, 'monitor_data.db') # 使用绝对路径
 RECORD_INTERVAL = 30
 KEEP_HISTORY_DAYS = 7
 PORT = 5000
 
+# 设置日志配置
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+# 配置Flask
 app = Flask(__name__)
-# 关键：允许跨域，因为前端和后端现在不在同一个域/端口了
-CORS(app)
+CORS(app) # 允许跨域
 
-# --- 数据库代码保持不变 ---
+# --- 数据库处理 ---
 def get_db():
     db = getattr(g, '_database', None)
     if db is None:
@@ -39,23 +38,27 @@ def close_connection(exception):
     if db is not None:
         db.close()
 
+# 初始化数据库
 def init_db():
-    with sqlite3.connect(DB_FILE) as conn:
-        cursor = conn.cursor()
-        cursor.execute('''
-            CREATE TABLE IF NOT EXISTS system_metrics (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp DATETIME NOT NULL,
-                cpu_percent REAL,
-                memory_percent REAL,
-                gpu_data TEXT,
-                summary TEXT
-            )
-        ''')
-        cursor.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON system_metrics (timestamp)')
-        conn.commit()
+    try:
+        with sqlite3.connect(DB_FILE) as conn:
+            cursor = conn.cursor()
+            cursor.execute('''
+                CREATE TABLE IF NOT EXISTS system_metrics (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp DATETIME NOT NULL,
+                    cpu_percent REAL,
+                    memory_percent REAL,
+                    gpu_data TEXT,
+                    summary TEXT
+                )
+            ''')
+            cursor.execute('CREATE INDEX IF NOT EXISTS idx_timestamp ON system_metrics (timestamp)')
+            conn.commit()
+    except Exception as e:
+        logger.error(f"初始化数据库失败: {e}")
 
-# --- 后台记录任务保持不变 ---
+# --- 后台记录任务 ---
 def background_recorder():
     logger.info(f"后台记录服务启动，间隔: {RECORD_INTERVAL}秒")
     while True:
@@ -70,7 +73,7 @@ def background_recorder():
             
             gpu_json = json.dumps(gpu_info.get('gpus', []), default=str)
             summary_json = json.dumps(gpu_info.get('summary', {}), default=str)
-
+            
             with sqlite3.connect(DB_FILE) as conn:
                 cursor = conn.cursor()
                 cursor.execute('''
@@ -78,7 +81,8 @@ def background_recorder():
                     VALUES (?, ?, ?, ?, ?)
                 ''', (timestamp, cpu_percent, mem_percent, gpu_json, summary_json))
                 
-                if datetime.now().hour == 3 and datetime.now().minute == 0:
+                # 简单的清理逻辑
+                if datetime.now().hour == 3 and datetime.now().minute < 2:
                      cleanup_threshold = (datetime.now() - timedelta(days=KEEP_HISTORY_DAYS)).strftime('%Y-%m-%d %H:%M:%S')
                      cursor.execute("DELETE FROM system_metrics WHERE timestamp < ?", (cleanup_threshold,))
                 conn.commit()
@@ -86,11 +90,10 @@ def background_recorder():
             logger.error(f"后台记录失败: {e}")
         time.sleep(RECORD_INTERVAL)
 
-# --- API 路由 (删除了 index 和 config 路由) ---
-
+# --- API 路由 ---
 @app.route('/')
 def health_check():
-    return jsonify({"status": "ok", "role": "gpu-agent"})
+    return jsonify({"status": "ok", "role": "gpu-agent", "time": datetime.now().isoformat()})
 
 @app.route('/api/status', methods=['GET'])
 def get_current_status():
@@ -98,6 +101,7 @@ def get_current_status():
         data = gpu_monitor.get_all_info()
         return jsonify({"code": 200, "data": data, "msg": "success"})
     except Exception as e:
+        logger.error(f"获取状态失败: {e}")
         return jsonify({"code": 500, "msg": str(e)}), 500
 
 @app.route('/api/history', methods=['GET'])
@@ -124,11 +128,12 @@ def get_history():
         return jsonify({"code": 500, "msg": str(e)}), 500
 
 if __name__ == '__main__':
-    if not os.path.exists(DB_FILE): init_db()
-    else: init_db()
+    # 确保数据库存在
+    init_db()
     
     recorder_thread = threading.Thread(target=background_recorder, daemon=True)
     recorder_thread.start()
-
-    # 监听所有 IP
+    
+    # 监听所有 IP，端口 5000
+    print(f"Agent running on port {PORT}")
     app.run(host='0.0.0.0', port=PORT, debug=False)
