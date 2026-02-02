@@ -1,5 +1,12 @@
+// front/app.js
 const { createApp, ref, computed, onMounted, onUnmounted, shallowRef } = Vue;
 const { Monitor, Refresh, Loading, Download, Upload } = ElementPlusIconsVue;
+
+// --- 配置区域 ---
+// 如果你直接打开 html 文件，请将下面地址改为 dashboard.py 运行的地址
+// 例如: const API_BASE_URL = 'http://127.0.0.1:8080';
+// 如果 dashboard.py 和 html 在同一个 web server 下（通过 nginx 反代），可以留空
+const API_BASE_URL = 'http://127.0.0.1:8080'; 
 
 const app = createApp({
   components: { Monitor, Loading, Download, Upload },
@@ -49,30 +56,40 @@ const app = createApp({
         return 'text-success';
     };
 
-    // 核心修复：手动计算显存百分比，不依赖 API 的 percent 字段
+    // 显存百分比计算
     const calcMemoryPercent = (gpu) => {
         if (!gpu || !gpu.memory || !gpu.memory.total) return 0;
-        // 使用 used / total 计算，确保准确性
         const pct = (gpu.memory.used / gpu.memory.total) * 100;
-        // 限制在 0-100 之间
         return Math.round(Math.min(Math.max(pct, 0), 100));
     };
 
-    // 数据逻辑
+    // --- 数据逻辑 ---
+    
+    // 封装 fetch，自动添加 Base URL
+    const fetchApi = async (endpoint) => {
+        // 处理拼接 / 的问题
+        const baseUrl = API_BASE_URL.replace(/\/$/, '');
+        const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+        return fetch(`${baseUrl}${url}`);
+    };
+
     const loadConfig = async () => {
       try {
-        // 请求本地代理接口
-        const response = await fetch('/api/config');
-        if (!response.ok) throw new Error('Config load error');
+        // 请求 dashboard.py 的 /api/config
+        const response = await fetchApi('/api/config');
+        if (!response.ok) throw new Error(`Config load error: ${response.status}`);
         const config = await response.json();
+        
         servers.value = config.servers || [];
+        
+        // 自动选择第一个
         if (servers.value.length > 0) {
           selectedServerId.value = servers.value[0].id;
           await loadSelectedServerData();
         }
       } catch (error) {
         console.error(error);
-        ElementPlus.ElMessage.error('无法加载服务器列表');
+        ElementPlus.ElMessage.error('无法加载服务器列表，请检查 Dashboard 是否运行');
       } finally {
         loading.value = false;
       }
@@ -84,12 +101,11 @@ const app = createApp({
       if (!currentData.value) {
         loading.value = true;
       }
-
       try {
-        // 请求本地代理接口，转发到后端
+        // 请求 dashboard.py 的 /api/proxy
         const url = `/api/proxy?id=${selectedServerId.value}`;
         
-        const response = await fetch(url);
+        const response = await fetchApi(url);
         const result = await response.json();
         
         if (result.code === 200) {
@@ -97,8 +113,10 @@ const app = createApp({
           lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN', {hour12: false});
         } else {
           console.warn(result.msg);
-          if(result.code === 502) {
-              // 代理连接失败
+          // 如果是 502/504 等代理错误，提示一下
+          if (result.code >= 500) {
+             // 静默失败或轻微提示，避免自动刷新时弹窗太多
+             console.log("代理请求后端失败:", result.msg);
           }
         }
       } catch (error) {
@@ -116,7 +134,10 @@ const app = createApp({
             clearInterval(refreshTimer.value);
             refreshTimer.value = null;
         }
+        // 切换服务器时，先清空旧数据，给用户加载中的感觉
+        currentData.value = null; 
         loadSelectedServerData();
+        
         if (autoRefresh.value) {
             refreshTimer.value = setInterval(loadSelectedServerData, 3000);
         }

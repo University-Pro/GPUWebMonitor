@@ -1,19 +1,16 @@
-# backend/dashboard.py
+# 中转后端，用于代理前端请求到内网的服务器
 import os
 import json
 import requests
 from flask import Flask, jsonify, request, make_response
 from flask_cors import CORS
 
+# 设置Flask
 app = Flask(__name__)
-# 启用 CORS，允许所有来源访问 API，因为 HTML 可能以 file:// 或其他端口打开
 CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # --- 路径配置 ---
-# 获取当前文件 (dashboard.py) 所在的目录
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# 假设结构是 backend/dashboard.py 和 front/config.json
-# 我们需要向上一级找到 front 目录
 CONFIG_FILE = os.path.join(CURRENT_DIR, '..', 'front', 'config.json')
 
 def load_config():
