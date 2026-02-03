@@ -86,6 +86,6 @@ def proxy_request():
 
 if __name__ == '__main__':
     # 监听 8080 端口
-    print(f"Dashboard Proxy running on port 8080")
+    print(f"Dashboard Proxy running on port 28456")
     print(f"Looking for config at: {CONFIG_FILE}")
-    app.run(host='0.0.0.0', port=8080, debug=False)
+    app.run(host='0.0.0.0', port=28456, debug=False)

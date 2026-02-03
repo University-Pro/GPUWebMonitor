@@ -7,6 +7,8 @@
 
 **ServerMonitor** 是一个专为GPU服务器集群设计的现代化监控系统，提供实时的GPU状态、系统指标和进程监控。
 
+![alt text](pictures/readme1.png)
+
 ## ✨ 功能特性
 
 ### 🚀 核心功能
