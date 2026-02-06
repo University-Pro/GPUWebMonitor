@@ -6,7 +6,7 @@ const { Monitor, Refresh, Loading, Download, Upload } = ElementPlusIconsVue;
 // 如果你直接打开 html 文件，请将下面地址改为 dashboard.py 运行的地址
 // 例如: const API_BASE_URL = 'http://127.0.0.1:8080';
 // 如果 dashboard.py 和 html 在同一个 web server 下（通过 nginx 反代），可以留空
-const API_BASE_URL = 'http://127.0.0.1:8080'; 
+const API_BASE_URL = ''; 
 
 const app = createApp({
   components: { Monitor, Loading, Download, Upload },

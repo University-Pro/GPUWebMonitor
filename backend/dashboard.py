@@ -2,7 +2,7 @@
 import os
 import json
 import requests
-from flask import Flask, jsonify, request, make_response
+from flask import Flask, jsonify, request, make_response, send_from_directory
 from flask_cors import CORS
 
 # 设置Flask
@@ -27,9 +27,18 @@ def load_config():
     return {"servers": []}
 
 @app.route('/')
-def api_root():
-    """仅返回后端状态，不再服务 HTML"""
-    return jsonify({"status": "Dashboard Proxy Running", "usage": "Call /api/config or /api/proxy"})
+def serve_index():
+    """提供前端主页面"""
+    return send_from_directory(os.path.join(CURRENT_DIR, '..', 'front'), 'index.html')
+
+@app.route('/<path:filename>')
+def serve_static(filename):
+    """提供 front/ 目录下的静态资源（app.js, style.css 等）"""
+    # 安全限制：只允许特定后缀，防止路径遍历
+    if filename.endswith(('.js', '.css', '.html', '.json', '.png', '.jpg', '.ico')):
+        return send_from_directory(os.path.join(CURRENT_DIR, '..', 'front'), filename)
+    else:
+        return jsonify({"error": "File not allowed"}), 403
 
 @app.route('/api/config')
 def get_config():
