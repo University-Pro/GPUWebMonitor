@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0" /> -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>GPU 集群监控面板</title>
+  <!-- 网站图标 -->
+  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
+
+
+  <!-- Element Plus CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+  <!-- 自定义样式 -->
+  <link rel="stylesheet" href="style.css" />
+  <!-- Vue 3 -->
+  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+  <!-- Element Plus JS -->
+  <script src="https://unpkg.com/element-plus"></script>
+  <!-- Element Plus Icons -->
+  <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+
+</head>
+<body>
+  <div id="app" class="container" v-cloak>
+    
+    <!-- 头部栏 -->
+    <div class="header-bar">
+      <div class="header-title">
+        <el-icon :size="26" color="#409eff"><Monitor /></el-icon>
+        <span>GPU 监控看板</span>
+      </div>
+      
+      <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+        <span v-if="lastUpdateTime" style="font-size: 13px; color: var(--text-light); margin-right: 8px;">
+          更新于 {{ lastUpdateTime }}
+        </span>
+        
+        <el-select v-model="selectedServerId" placeholder="选择节点" style="width: 180px;" @change="handleServerChange">
+          <el-option v-for="srv in servers" :key="srv.id" :label="srv.name" :value="srv.id"></el-option>
+        </el-select>
+
+        <!-- 夜间模式选择器 -->
+        <el-dropdown trigger="click" @command="handleThemeChange">
+          <el-button type="default" :icon="themeIcon" size="small" plain>
+            {{ themeText }}
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="auto" :disabled="currentTheme === 'auto'">
+                <el-icon><Sunrise /></el-icon>自动切换
+              </el-dropdown-item>
+              <el-dropdown-item command="light" :disabled="currentTheme === 'light'">
+                <el-icon><Sunny /></el-icon>白天模式
+              </el-dropdown-item>
+              <el-dropdown-item command="dark" :disabled="currentTheme === 'dark'">
+                <el-icon><Moon /></el-icon>夜间模式
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+
+        <div style="display: flex; align-items: center; background: var(--bg-panel); padding: 0 12px; height: 32px; border-radius: 4px;">
+            <span style="font-size: 13px; color: var(--text-secondary); margin-right: 8px;">自动刷新</span>
+            <el-switch v-model="autoRefresh" size="small" @change="toggleAutoRefresh" />
+        </div>
+        <el-button type="primary" :icon="RefreshIcon" :loading="loading && !currentData" @click="refreshCurrent" circle></el-button>
+      </div>
+    </div>
+    <!-- 错误提示 -->
+    <div v-if="!loading && servers.length === 0" style="margin-bottom: 20px;">
+        <el-alert title="无法连接" description="未找到服务器配置，请检查 config.json" type="error" show-icon />
+    </div>
+    <!-- 主内容 -->
+    <div v-if="currentData">
+      
+      <!-- 系统概览 -->
+      <el-row :gutter="24" style="margin-bottom: 24px;">
+        <!-- CPU -->
+        <el-col :md="8" :sm="12" :xs="24" style="margin-bottom: 16px;">
+          <div class="dashboard-card">
+            <div class="metric-group">
+                <div class="metric-info">
+                    <div class="metric-label">CPU 负载</div>
+                    <div class="metric-value-big">{{ safeNumber(currentData.system.cpu.percent).toFixed(1) }}%</div>
+                    <div class="metric-sub">
+                        {{ currentData.system.cpu.count }} 核心 / {{ (currentData.system.cpu.frequency_current/1000).toFixed(1) }} GHz
+                    </div>
+                </div>
+                <el-progress type="circle" :width="70" :stroke-width="8" :percentage="safeNumber(currentData.system.cpu.percent)" :show-text="false" :color="colors" />
+            </div>
+          </div>
+        </el-col>
+        
+        <!-- 内存 -->
+        <el-col :md="8" :sm="12" :xs="24" style="margin-bottom: 16px;">
+          <div class="dashboard-card">
+            <div class="metric-group">
+                <div class="metric-info">
+                    <div class="metric-label">内存使用</div>
+                    <div class="metric-value-big">{{ safeNumber(currentData.system.memory.percent).toFixed(1) }}%</div>
+                    <div class="metric-sub">
+                        {{ formatBytes(currentData.system.memory.used) }} / {{ formatBytes(currentData.system.memory.total) }}
+                    </div>
+                </div>
+                <el-progress type="circle" :width="70" :stroke-width="8" :percentage="safeNumber(currentData.system.memory.percent)" :show-text="false" :color="colors" />
+            </div>
+          </div>
+        </el-col>
+        <!-- 网络与统计 -->
+        <el-col :md="8" :sm="24" :xs="24" style="margin-bottom: 16px;">
+            <div class="dashboard-card" style="display: flex; flex-direction: column; justify-content: center;">
+                <div class="network-item">
+                    <span style="color: var(--text-secondary);"><el-icon style="vertical-align: middle; margin-right: 4px;"><Download /></el-icon> 网络下行</span>
+                    <span style="font-weight: 600;">{{ formatBytes(currentData.system.network.bytes_recv) }}</span>
+                </div>
+                <div class="network-item">
+                    <span style="color: var(--text-secondary);"><el-icon style="vertical-align: middle; margin-right: 4px;"><Upload /></el-icon> 网络上行</span>
+                    <span style="font-weight: 600;">{{ formatBytes(currentData.system.network.bytes_sent) }}</span>
+                </div>
+                <div class="network-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-light);">
+                    <span style="color: var(--text-secondary);">GPU 在线数量</span>
+                    <el-tag size="small" type="success" effect="light">{{ gpuList.length }} 卡</el-tag>
+                </div>
+            </div>
+        </el-col>
+      </el-row>
+      <!-- GPU 列表 -->
+      <div v-for="gpu in gpuList" :key="gpu.uuid || gpu.index" class="dashboard-card gpu-card">
+        <!-- GPU 头部 -->
+        <div class="gpu-header">
+            <div class="gpu-title-box">
+                <span class="gpu-index-badge">#{{ gpu.index }}</span>
+                <span class="gpu-name">{{ gpu.name }}</span>
+            </div>
+            <div>
+                <!-- 纯数字温度 -->
+                <el-tag :type="getTempStatus(gpu.temperature)" effect="dark" round>
+                   {{ gpu.temperature }}°C
+                </el-tag>
+            </div>
+        </div>
+        <!-- GPU 详情主体 -->
+        <div class="gpu-details-grid">
+            <!-- 左侧：显存与利用率 -->
+            <div class="progress-section">
+                <div>
+                    <div class="progress-label-row">
+                        <span>显存 (VRAM)</span>
+                        <span class="progress-val">{{ gpu.memory.used_gb.toFixed(1) }} / {{ gpu.memory.total_gb.toFixed(1) }} GB</span>
+                    </div>
+                    <el-progress 
+                        :percentage="calcMemoryPercent(gpu)" 
+                        :stroke-width="18" 
+                        :color="colors"
+                        :text-inside="true"
+                    />
+                </div>
+                <div>
+                    <div class="progress-label-row">
+                        <span>核心利用率</span>
+                        <span class="progress-val">{{ gpu.utilization.gpu }}%</span>
+                    </div>
+                    <el-progress 
+                        :percentage="Math.round(gpu.utilization.gpu)" 
+                        :stroke-width="18" 
+                        status="success"
+                        :text-inside="true"
+                    />
+                </div>
+            </div>
+            <!-- 右侧：传感器数据 -->
+            <div class="sensor-grid">
+                <div class="sensor-item">
+                    <div class="sensor-value">{{ (gpu.power.usage / 1000).toFixed(0) }} W</div>
+                    <div class="sensor-key">实时功耗</div>
+                </div>
+                <div class="sensor-item">
+                    <div class="sensor-value">{{ gpu.fan_speed }}%</div>
+                    <div class="sensor-key">风扇转速</div>
+                </div>
+                <div class="sensor-item">
+                    <div class="sensor-value" :class="getValColorClass(calcMemoryPercent(gpu))">
+                        {{ calcMemoryPercent(gpu) }}%
+                    </div>
+                    <div class="sensor-key">显存占比</div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 进程列表 -->
+        <div style="margin-top: 24px; border-top: 1px solid var(--border-light); padding-top: 12px;">
+            <el-collapse>
+                <el-collapse-item :title="`活跃进程 (${gpu.processes ? gpu.processes.length : 0})`" name="1">
+                    <el-table 
+                        :data="gpu.processes" 
+                        style="width: 100%" 
+                        size="small"
+                        empty-text="无活跃进程"
+                    >
+                        <el-table-column prop="pid" label="PID" width="80"></el-table-column>
+                        <el-table-column prop="username" label="用户" width="100"></el-table-column>
+                        <el-table-column prop="name" label="进程名" width="140" show-overflow-tooltip></el-table-column>
+                        <el-table-column label="显存占用" width="100">
+                            <template #default="scope">
+                                {{ formatBytes(scope.row.gpu_memory) }}
+                            </template>
+                        </el-table-column>
+                        <el-table-column prop="command" label="命令" min-width="180" show-overflow-tooltip>
+                            <template #default="scope">
+                                <span style="font-family: monospace; color: var(--text-secondary);">{{ scope.row.command }}</span>
+                            </template>
+                        </el-table-column>
+                    </el-table>
+                </el-collapse-item>
+            </el-collapse>
+        </div>
+      </div>
+    </div>
+    <!-- 初始加载状态 -->
+    <div v-else style="padding: 40px 0;">
+        <el-skeleton :rows="3" animated style="margin-bottom: 20px;" />
+        <el-skeleton :rows="6" animated />
+    </div>
+    <!-- 底部署名 -->
+    <div class="footer-copyright">
+      <p>&copy; 2026 GPU 集群监控面板 | Powered by Shushu Internet Center in Anhui University</p>
+      <p>Designed for AI Researchers and Developers</p>
+    </div>
+  </div>
+
+  </div>
+  <!-- 引入业务逻辑 -->
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+# 忽略db
+*.db
+# 忽略db的临时文件
+monitor_data.db-shm
+monitor_data.db-wal
