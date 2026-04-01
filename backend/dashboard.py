@@ -94,7 +94,6 @@ def proxy_request():
         return jsonify({"code": 500, "msg": f"代理服务内部错误: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    # 监听 8080 端口
     print(f"Dashboard Proxy running on port 28456")
     print(f"Looking for config at: {CONFIG_FILE}")
     app.run(host='0.0.0.0', port=28456, debug=False)

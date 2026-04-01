@@ -4,10 +4,20 @@ import json
 import time
 import threading
 import logging
+import gc
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
-import gpu_monitor
+
+# 假设 gpu_monitor 存在于路径中
+try:
+    import gpu_monitor
+except ImportError:
+    # 模拟环境（仅供测试）
+    class DummyMonitor:
+        def get_all_info(self):
+            return {"system": {"cpu": {"percent": 0}, "memory": {"percent": 0}}, "gpu": {"gpus": [], "summary": {}}}
+    gpu_monitor = DummyMonitor()
 
 # --- 配置 ---
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,49 +33,53 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Flask
 app = Flask(__name__)
 CORS(app)
 
+# --- 数据库核心逻辑 ---
 
-# --- 工具函数 ---
-def get_fd_count():
-    """获取当前进程打开的文件描述符数量，仅 Linux 可用。"""
+def get_db_connection():
+    """
+    创建一个统一配置的数据库连接。
+    使用 DELETE 模式确保不产生 .wal 和 .shm 文件。
+    """
     try:
-        return len(os.listdir('/proc/self/fd'))
-    except Exception:
-        return -1
+        # 增加 timeout 到 30s，防止 DELETE 模式下的并发锁竞争
+        conn = sqlite3.connect(DB_FILE, timeout=30)
+        conn.row_factory = sqlite3.Row
+        
+        # 关键配置：DELETE 模式在事务完成后会删除日志文件
+        # synchronous FULL 保证在非WAL模式下的数据完整性
+        conn.execute("PRAGMA journal_mode=DELETE;")
+        conn.execute("PRAGMA synchronous=FULL;")
+        # 优化内存使用
+        conn.execute("PRAGMA cache_size=-2000;") # 约 2MB 缓存
+        return conn
+    except Exception as e:
+        logger.error(f"无法连接数据库: {e}")
+        return None
 
-
-# --- 数据库处理 ---
 def get_db():
-    """
-    Flask 请求上下文内复用数据库连接。
-    每个请求结束后由 teardown 关闭。
-    """
-    db = getattr(g, '_database', None)
-    if db is None:
-        db = g._database = sqlite3.connect(DB_FILE, timeout=10)
-        db.row_factory = sqlite3.Row
-    return db
-
+    """Flask 请求上下文内复用数据库连接"""
+    if 'db' not in g:
+        g.db = get_db_connection()
+    return g.db
 
 @app.teardown_appcontext
 def close_connection(exception):
-    db = getattr(g, '_database', None)
+    """确保 Flask 请求结束后彻底关闭连接，释放 FD"""
+    db = g.pop('db', None)
     if db is not None:
         try:
             db.close()
-        except Exception:
-            pass
-
+        except Exception as e:
+            logger.error(f"关闭数据库连接失败: {e}")
 
 def init_db():
-    """初始化数据库，仅在启动时执行一次 WAL 配置。"""
-    try:
-        with sqlite3.connect(DB_FILE, timeout=10) as conn:
-            conn.execute("PRAGMA journal_mode=WAL;")
-            conn.execute("PRAGMA synchronous=NORMAL;")
+    """初始化数据库表结构"""
+    conn = get_db_connection()
+    if conn:
+        try:
             cursor = conn.cursor()
             cursor.execute('''
                 CREATE TABLE IF NOT EXISTS system_metrics (
@@ -81,45 +95,42 @@ def init_db():
                 'CREATE INDEX IF NOT EXISTS idx_timestamp ON system_metrics (timestamp)'
             )
             conn.commit()
-            cursor.close()
-            logger.info("数据库初始化完成")
-    except Exception as e:
-        logger.exception(f"初始化数据库失败：{e}")
+            logger.info("数据库初始化完成（Mode: DELETE）")
+        except Exception as e:
+            logger.exception(f"初始化数据库失败：{e}")
+        finally:
+            conn.close()
 
+# --- FD 监控辅助 ---
+def get_fd_count():
+    try:
+        return len(os.listdir('/proc/self/fd'))
+    except:
+        return -1
 
 # --- 后台记录任务 ---
 def background_recorder():
-    logger.info(
-        f"后台记录服务启动，间隔：{RECORD_INTERVAL}秒，保留天数：{KEEP_HISTORY_DAYS}天"
-    )
-
-    last_checkpoint_time = time.time()
-    CHECKPOINT_INTERVAL = 24 * 60 * 60  # 每 24 小时执行一次 checkpoint
+    logger.info(f"后台记录服务启动，保留天数：{KEEP_HISTORY_DAYS}")
 
     while True:
+        conn = None
         try:
-            logger.info(f"后台任务开始，当前FD数量: {get_fd_count()}")
-
-            # 1. 获取监控数据，并记录 get_all_info 前后 FD 变化
-            fd_before = get_fd_count()
+            # 1. 采集数据（注意：如果 gpu_monitor 内部有 FD 泄漏，此处最危险）
+            # 建议检查 gpu_monitor 是否正确关闭了所有 subprocess
             full_data = gpu_monitor.get_all_info()
-            fd_after = get_fd_count()
-            logger.info(f"get_all_info() FD变化: {fd_before} -> {fd_after}")
-
+            
             timestamp = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-
             sys_data = full_data.get('system', {})
             cpu_percent = sys_data.get('cpu', {}).get('percent', 0)
             mem_percent = sys_data.get('memory', {}).get('percent', 0)
-
             gpu_info = full_data.get('gpu', {})
             gpu_json = json.dumps(gpu_info.get('gpus', []), default=str)
             summary_json = json.dumps(gpu_info.get('summary', {}), default=str)
 
             # 2. 写入数据库
-            with sqlite3.connect(DB_FILE, timeout=10) as conn:
+            conn = get_db_connection()
+            if conn:
                 cursor = conn.cursor()
-
                 cursor.execute('''
                     INSERT INTO system_metrics (timestamp, cpu_percent, memory_percent, gpu_data, summary)
                     VALUES (?, ?, ?, ?, ?)
@@ -129,80 +140,60 @@ def background_recorder():
                 cleanup_threshold = (
                     datetime.now() - timedelta(days=KEEP_HISTORY_DAYS)
                 ).strftime('%Y-%m-%d %H:%M:%S')
-
-                cursor.execute(
-                    "DELETE FROM system_metrics WHERE timestamp < ?",
-                    (cleanup_threshold,)
-                )
-
-                deleted_count = cursor.rowcount
-                if deleted_count > 0:
-                    logger.info(f"清理过期数据：{deleted_count} 条记录")
-
+                cursor.execute("DELETE FROM system_metrics WHERE timestamp < ?", (cleanup_threshold,))
+                
                 conn.commit()
-                cursor.close()
-
-            # 4. 定期执行 checkpoint，而不是 VACUUM
-            current_time = time.time()
-            if current_time - last_checkpoint_time > CHECKPOINT_INTERVAL:
-                try:
-                    with sqlite3.connect(DB_FILE, timeout=10) as conn_ckpt:
-                        conn_ckpt.execute("PRAGMA wal_checkpoint(TRUNCATE);")
-                    logger.info("执行数据库 wal_checkpoint(TRUNCATE) 完成")
-                    last_checkpoint_time = current_time
-                except sqlite3.OperationalError as e:
-                    logger.warning(f"checkpoint 执行失败（可能数据库正忙）: {e}")
-                except Exception as e:
-                    logger.exception(f"checkpoint 发生错误：{e}")
-
-            logger.info(f"后台任务结束，当前FD数量: {get_fd_count()}")
+                logger.debug(f"数据记录成功，当前 FD: {get_fd_count()}")
 
         except Exception as e:
-            logger.exception(f"后台记录失败：{e}")
+            logger.error(f"后台记录循环发生错误: {e}")
+        finally:
+            # 显式关闭连接，释放 FD
+            if conn:
+                try:
+                    conn.close()
+                except:
+                    pass
+            # 强制进行垃圾回收，防止某些对象持有的 FD 延迟释放
+            if int(time.time()) % 300 == 0: 
+                gc.collect()
 
         time.sleep(RECORD_INTERVAL)
 
-
 # --- API 路由 ---
+
 @app.route('/')
 def health_check():
     return jsonify({
         "status": "ok",
-        "role": "gpu-agent",
+        "fd_count": get_fd_count(),
         "time": datetime.now().isoformat()
     })
-
 
 @app.route('/api/status', methods=['GET'])
 def get_current_status():
     try:
+        # 直接调用监控函数，不涉及 DB
         data = gpu_monitor.get_all_info()
         return jsonify({"code": 200, "data": data, "msg": "success"})
     except Exception as e:
-        logger.exception(f"获取状态失败：{e}")
         return jsonify({"code": 500, "msg": str(e)}), 500
-
 
 @app.route('/api/history', methods=['GET'])
 def get_history():
-    limit = request.args.get('limit', 100, type=int)
-
-    # 防止恶意请求拖慢数据库
-    if limit > 1000:
-        limit = 1000
-    elif limit <= 0:
-        limit = 100
-
-    query = '''
-        SELECT timestamp, cpu_percent, memory_percent, gpu_data, summary
-        FROM system_metrics
-        ORDER BY id DESC
-        LIMIT ?
-    '''
-
+    limit = min(request.args.get('limit', 100, type=int), 1000)
+    
     try:
         db = get_db()
-        cursor = db.execute(query, (limit,))
+        if not db:
+            return jsonify({"code": 500, "msg": "Database connection failed"}), 500
+            
+        cursor = db.execute('''
+            SELECT timestamp, cpu_percent, memory_percent, gpu_data, summary
+            FROM system_metrics
+            ORDER BY id DESC
+            LIMIT ?
+        ''', (limit,))
         rows = cursor.fetchall()
 
         history_data = []
@@ -215,23 +206,25 @@ def get_history():
                     "gpus": json.loads(row['gpu_data']) if row['gpu_data'] else [],
                     "summary": json.loads(row['summary']) if row['summary'] else {}
                 })
-            except Exception:
+            except:
                 continue
 
         return jsonify({"code": 200, "data": history_data, "msg": "success"})
     except Exception as e:
-        logger.exception(f"获取历史数据失败：{e}")
+        logger.error(f"查询历史失败: {e}")
         return jsonify({"code": 500, "msg": str(e)}), 500
 
-
 if __name__ == '__main__':
+    # 确保数据库初始化
     init_db()
 
+    # 启动后台线程
     recorder_thread = threading.Thread(
         target=background_recorder,
         daemon=True
     )
     recorder_thread.start()
 
-    logger.info(f"Agent running on port {PORT}")
+    logger.info(f"Agent 启动在端口 {PORT}，模式：稳定性优先")
+    # 使用 threaded=True 处理并发请求，但限制线程数（可选）
     app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)

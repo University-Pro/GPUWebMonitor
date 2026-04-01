@@ -3,3 +3,7 @@
 # 忽略db的临时文件
 monitor_data.db-shm
 monitor_data.db-wal
+# 忽略pycache文件夹
+__pycache__/
+# 忽略.vscode
+.vscode/
