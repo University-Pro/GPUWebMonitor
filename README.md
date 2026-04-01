@@ -1,11 +1,12 @@
 # ServerMonitor - GPU服务器集群监控系统
 
-[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Python](https://img.shields.io/badge/Python-3.8+-green.svg)](https://www.python.org/)
+[![License](https://img.shields.io/badge/license-GPL_V3-blue.svg)](LICENSE)
+[![Python](https://img.shields.io/badge/Python-3.12+-green.svg)](https://www.python.org/)
 [![Vue](https://img.shields.io/badge/Vue-3.0+-4FC08D.svg)](https://vuejs.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.0+-000000.svg)](https://flask.palletsprojects.com/)
 
-**ServerMonitor** 是一个专为GPU服务器集群设计的现代化监控系统，提供实时的GPU状态、系统指标和进程监控。现在仍在开发，请勿在开发环境中使用。
+**ServerMonitor** 是一个专为GPU服务器集群设计的现代化监控系统，提供实时的GPU状态、系统指标和进程监控。
+现在仍在开发过程中，请勿在生产环境以及不可控的开发环境中使用。
 
 ![alt text](pictures/readme1.png)
 
@@ -14,7 +15,7 @@
 ### 🚀 核心功能
 - **多服务器监控** - 支持同时监控多个GPU服务器
 - **实时数据刷新** - 默认30秒自动刷新，实时掌握服务器状态
-- **历史数据记录** - 自动保存7天历史监控数据
+- **历史数据记录** - 自动保存30天历史监控数据
 - **进程级监控** - 详细显示GPU上运行的进程信息
 
 ### 📊 监控指标
@@ -25,8 +26,7 @@
 ### 🛠 技术特性
 - **现代化界面** - Vue 3 + Element Plus构建的响应式Web界面
 - **权限友好** - 智能处理NVML权限问题，支持回退机制
-- **容器化部署** - 支持Docker一键部署
-- **配置灵活** - JSON配置文件轻松管理监控服务器
+- **配置灵活** - JSON配置文件轻松管理服务器
 
 ## 🏗 系统架构
 
@@ -34,7 +34,7 @@
 ┌─────────────────┐    ┌──────────────────┐    ┌─────────────────┐
 │   前端界面       │    │   Dashboard服务  │    │    Agent服务     │
 │   (Vue 3)       │◄──►│   (dashboard.py) │◄──►│   (app.py)      │
-│                 │    │   端口: 8080      │    │   端口: 5000     │
+│                 │    │   端口: 28456    │    │   端口: 15896    │
 └─────────────────┘    └──────────────────┘    └─────────────────┘
          │                        │                       │
          │                        │                       ▼
@@ -52,17 +52,15 @@
 ## 📦 安装部署
 
 ### 环境要求
-- **Python 3.8+**（后端服务）
-- **Node.js**（前端开发，生产环境已预编译）
-- **Docker**（可选，容器化部署）
+- **Python 3.12+**（后端服务）
 - **NVIDIA驱动**（被监控服务器）
 
 ### 快速开始
 
 #### 1. 克隆项目
 ```bash
-git clone <项目地址>
-cd servermonitor
+git clone https://github.com/University-Pro/GPUWebMonitor.git
+cd GPUWebMonitor
 ```
 
 #### 2. 后端Agent服务（每台被监控服务器）
@@ -71,60 +69,60 @@ cd backend
 
 # 安装依赖
 pip install -r requirements.txt
-# 或使用Docker
-docker build -t servermonitor-agent .
-docker run -d -p 5000:5000 --name agent servermonitor-agent
 ```
 
-#### 3. Dashboard服务（中央监控面板）
+#### 3. 配置被监控的客户端
 ```bash
-cd backend
-python dashboard.py
-# 或使用Docker（待实现）
+# 创建服务
+sudo vim /etc/systemd/system/gpu-monitor-agent.service 
+```
+添加内容如下
+```
+[Unit]
+Description=GPU Monitor Agent Service
+After=network.target
+
+[Service]
+User=Your User Name
+Group=Your Group Name
+
+# 修改为你的项目目录地址
+WorkingDirectory=.../gpuwebmonitor/backend
+
+# !! 修改为你的虚拟环境中 python 的绝对路径 !!
+ExecStart=python app.py
+
+# 如果服务失败，5秒后自动重启
+Restart=on-failure
+RestartSec=5s
+
+[Install]
+# 表示这个服务应该在多用户模式下启用
+WantedBy=multi-user.target
 ```
 
-#### 4. 前端服务
+#### 4.配置收集客户端信息的服务端
 ```bash
-cd front
-
-# 生产环境直接使用（已预编译）
-# 或使用Docker
-docker build -t servermonitor-front .
-docker run -d -p 80:80 --name front servermonitor-front
+# 创建服务
+sudo vim /etc/systemd/system/gpu-monitor-server.service 
 ```
+添加内容如下
+```
+[Unit]
+Description=GPU Monitor Server Frontend Dashboard
+After=network.target
+Wants=gpu-monitor-agent.service
 
-### Docker Compose一键部署
-```yaml
-# docker-compose.yml（示例）
-version: '3'
-services:
-  agent1:
-    build: ./backend
-    ports:
-      - "5000:5000"
-    environment:
-      - SERVER_NAME=服务器1
+[Service]
+User=Your User Name
+Group=Your Group Name
+WorkingDirectory=/.../gpuwebmonitor/backend
+ExecStart=python dashboard.py
+Restart=on-failure
+RestartSec=5s
 
-  agent2:
-    build: ./backend
-    ports:
-      - "5001:5000"
-    environment:
-      - SERVER_NAME=服务器2
-
-  dashboard:
-    build: ./backend
-    ports:
-      - "8080:8080"
-    volumes:
-      - ./front/config.json:/app/config.json
-
-  frontend:
-    build: ./front
-    ports:
-      - "80:80"
-    depends_on:
-      - dashboard
+[Install]
+WantedBy=multi-user.target
 ```
 
 ## 🔧 配置说明
@@ -148,9 +146,9 @@ services:
 ```
 
 ### Agent配置（`backend/app.py`）
-- **端口**: 默认5000（可在代码中修改）
-- **数据保留**: 默认7天（可修改`cleanup_days`参数）
-- **刷新间隔**: 默认5秒采集一次数据
+- **端口**: 默认15896（可在代码中修改）
+- **数据保留**: 默认30天（可修改`cleanup_days`参数）
+- **刷新间隔**: 默认30秒采集一次数据
 
 ## 🎯 使用方法
 
@@ -164,7 +162,7 @@ python app.py
 python dashboard.py
 
 # 访问前端界面
-# 浏览器打开 http://localhost:8080
+# 浏览器打开 http://localhost:端口号
 ```
 
 ### 2. 访问监控面板
@@ -258,9 +256,6 @@ netstat -tulpn | grep :5000
 # Agent服务日志
 cd backend
 tail -f app.log
-
-# Docker容器日志
-docker logs agent-container-name
 ```
 
 ## 🤝 贡献指南
@@ -275,7 +270,7 @@ docker logs agent-container-name
 
 ## 📄 许可证
 
-本项目基于MIT许可证开源 - 查看[LICENSE](LICENSE)文件了解详情。
+本项目基于许可证开源 GNU GENERAL PUBLIC LICENSE Version 3 - 查看[LICENSE](LICENSE)文件了解详情。
 
 ## 🙏 致谢
 
