@@ -7,3 +7,5 @@ monitor_data.db-wal
 __pycache__/
 # 忽略.vscode
 .vscode/
+# 忽略venv
+venv/

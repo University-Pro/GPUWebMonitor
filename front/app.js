@@ -1,5 +1,5 @@
 // front/app.js
-const { createApp, ref, computed, onMounted, onUnmounted, shallowRef, watch } = Vue;
+const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
 const { Monitor, Refresh, Loading, Download, Upload, Sunny, Moon, Sunrise } = ElementPlusIconsVue;
 
 // --- 配置区域 ---
@@ -11,7 +11,163 @@ const API_BASE_URL = '';
 const app = createApp({
   components: { Monitor, Loading, Download, Upload, Sunny, Moon, Sunrise },
   setup() {
-    const RefreshIcon = shallowRef(Refresh);
+    const RefreshIcon = Refresh;
+
+    const localeMap = {
+      zh: { label: '中文', htmlLang: 'zh-CN' },
+      en: { label: 'English', htmlLang: 'en' },
+      ja: { label: '日本語', htmlLang: 'ja' },
+    };
+
+    const translations = {
+      zh: {
+        appTitle: 'GPU 监控看板',
+        appSubtitle: '实时可视化 GPU、CPU、内存与进程状态',
+        updatedAt: '更新于',
+        selectServer: '选择节点',
+        language: '语言',
+        autoRefresh: '自动刷新',
+        theme: {
+          auto: '自动',
+          light: '白天',
+          dark: '夜间',
+        },
+        themeMenu: {
+          auto: '自动切换',
+          light: '白天模式',
+          dark: '夜间模式',
+        },
+        metrics: {
+          cpu: 'CPU 负载',
+          memory: '内存使用',
+          networkDown: '网络下行',
+          networkUp: '网络上行',
+          gpuOnline: 'GPU 在线数量',
+          vram: '显存 (VRAM)',
+          utilization: '核心利用率',
+          power: '实时功耗',
+          fan: '风扇转速',
+          memoryUsage: '显存占比',
+          activeProcesses: '活跃进程',
+        },
+        table: {
+          pid: 'PID',
+          user: '用户',
+          processName: '进程名',
+          memory: '显存占用',
+          command: '命令',
+          empty: '无活跃进程',
+        },
+        errors: {
+          noConfigTitle: '无法连接',
+          noConfigDesc: '未找到服务器配置，请检查 config.json',
+          loadServerList: '无法加载服务器列表，请检查 Dashboard 是否运行',
+          fetchFailed: (message) => `获取数据失败: ${message}`,
+        },
+        footer: {
+          line1: '© 2026 GPU 集群监控面板 | Powered by Shushu Internet Center in Anhui University',
+          line2: 'Designed for AI Researchers and Developers',
+        },
+      },
+      en: {
+        appTitle: 'GPU Monitor Dashboard',
+        appSubtitle: 'Live telemetry for GPU, CPU, memory, and processes',
+        updatedAt: 'Updated at',
+        selectServer: 'Select node',
+        language: 'Language',
+        autoRefresh: 'Auto refresh',
+        theme: {
+          auto: 'Auto',
+          light: 'Light',
+          dark: 'Dark',
+        },
+        themeMenu: {
+          auto: 'Auto switch',
+          light: 'Light mode',
+          dark: 'Dark mode',
+        },
+        metrics: {
+          cpu: 'CPU Load',
+          memory: 'Memory Usage',
+          networkDown: 'Network In',
+          networkUp: 'Network Out',
+          gpuOnline: 'Online GPUs',
+          vram: 'VRAM',
+          utilization: 'Core Utilization',
+          power: 'Live Power',
+          fan: 'Fan Speed',
+          memoryUsage: 'VRAM Usage',
+          activeProcesses: 'Active Processes',
+        },
+        table: {
+          pid: 'PID',
+          user: 'User',
+          processName: 'Process',
+          memory: 'GPU Memory',
+          command: 'Command',
+          empty: 'No active processes',
+        },
+        errors: {
+          noConfigTitle: 'Connection failed',
+          noConfigDesc: 'No server configuration found. Check config.json.',
+          loadServerList: 'Unable to load server list. Check whether Dashboard is running.',
+          fetchFailed: (message) => `Failed to fetch data: ${message}`,
+        },
+        footer: {
+          line1: '© 2026 GPU Monitor Dashboard | Powered by Shushu Internet Center in Anhui University',
+          line2: 'Designed for AI Researchers and Developers',
+        },
+      },
+      ja: {
+        appTitle: 'GPU モニターダッシュボード',
+        appSubtitle: 'GPU、CPU、メモリ、プロセスの状態をリアルタイム表示',
+        updatedAt: '更新時刻',
+        selectServer: 'ノードを選択',
+        language: '言語',
+        autoRefresh: '自動更新',
+        theme: {
+          auto: '自動',
+          light: 'ライト',
+          dark: 'ダーク',
+        },
+        themeMenu: {
+          auto: '自動切替',
+          light: 'ライトモード',
+          dark: 'ダークモード',
+        },
+        metrics: {
+          cpu: 'CPU 使用率',
+          memory: 'メモリ使用量',
+          networkDown: '受信トラフィック',
+          networkUp: '送信トラフィック',
+          gpuOnline: '稼働中 GPU 数',
+          vram: 'VRAM',
+          utilization: 'コア使用率',
+          power: 'リアルタイム消費電力',
+          fan: 'ファン回転数',
+          memoryUsage: 'VRAM 使用率',
+          activeProcesses: 'アクティブプロセス',
+        },
+        table: {
+          pid: 'PID',
+          user: 'ユーザー',
+          processName: 'プロセス名',
+          memory: 'GPU メモリ',
+          command: 'コマンド',
+          empty: 'アクティブなプロセスはありません',
+        },
+        errors: {
+          noConfigTitle: '接続できません',
+          noConfigDesc: 'サーバー設定が見つかりません。config.json を確認してください。',
+          loadServerList: 'サーバー一覧を読み込めません。Dashboard の起動状態を確認してください。',
+          fetchFailed: (message) => `データ取得に失敗しました: ${message}`,
+        },
+        footer: {
+          line1: '© 2026 GPU モニターダッシュボード | Anhui University Shushu Internet Center',
+          line2: 'AI 研究者と開発者のために設計',
+        },
+      },
+    };
     
     // 核心数据
     const servers = ref([]);
@@ -21,11 +177,22 @@ const app = createApp({
     const lastUpdateTime = ref('');
     const autoRefresh = ref(false);
     const refreshTimer = ref(null);
+    const currentLocale = ref('zh');
 
     // 夜间模式相关
     const currentTheme = ref('auto'); // 'auto', 'light', 'dark'
-    const themeIcon = ref(Sunrise);
-    const themeText = ref('自动');
+    const themeIcon = computed(() => {
+      if (currentTheme.value === 'light') return Sunny;
+      if (currentTheme.value === 'dark') return Moon;
+      return Sunrise;
+    });
+    const translate = (key, fallback = '') => {
+      const locale = translations[currentLocale.value] || translations.zh;
+      const value = key.split('.').reduce((accumulator, segment) => accumulator?.[segment], locale);
+      return value ?? fallback ?? key;
+    };
+    const themeText = computed(() => translate(`theme.${currentTheme.value}`));
+    const localeText = computed(() => localeMap[currentLocale.value]?.label || '中文');
 
     // 颜色阈值
     const colors = [
@@ -73,19 +240,26 @@ const app = createApp({
       if (theme === 'auto') {
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-        themeText.value = '自动';
-        themeIcon.value = Sunrise;
       } else {
         document.documentElement.setAttribute('data-theme', theme);
-        themeText.value = theme === 'light' ? '白天' : '夜间';
-        themeIcon.value = theme === 'light' ? Sunny : Moon;
       }
+    };
+
+    const applyLocale = (locale) => {
+      const normalizedLocale = localeMap[locale] ? locale : 'zh';
+      currentLocale.value = normalizedLocale;
+      document.documentElement.lang = localeMap[normalizedLocale].htmlLang;
+      localStorage.setItem('locale-preference', normalizedLocale);
     };
 
     const handleThemeChange = (command) => {
       currentTheme.value = command;
       localStorage.setItem('theme-preference', command);
       applyTheme(command);
+    };
+
+    const handleLocaleChange = (command) => {
+      applyLocale(command);
     };
 
     const initializeTheme = () => {
@@ -107,6 +281,17 @@ const app = createApp({
         });
       }
     };
+
+    const initializeLocale = () => {
+      const savedLocale = localStorage.getItem('locale-preference');
+      const browserLocale = (navigator.language || '').toLowerCase();
+      const defaultLocale = browserLocale.startsWith('en') ? 'en' : browserLocale.startsWith('ja') ? 'ja' : 'zh';
+      applyLocale(savedLocale || defaultLocale);
+    };
+
+    watch(currentLocale, () => {
+      document.title = translate('appTitle');
+    }, { immediate: true });
 
     // --- 数据逻辑 ---
     
@@ -134,7 +319,7 @@ const app = createApp({
         }
       } catch (error) {
         console.error(error);
-        ElementPlus.ElMessage.error('无法加载服务器列表，请检查 Dashboard 是否运行');
+        ElementPlus.ElMessage.error(translate('errors.loadServerList'));
       } finally {
         loading.value = false;
       }
@@ -155,7 +340,7 @@ const app = createApp({
         
         if (result.code === 200) {
           currentData.value = result.data;
-          lastUpdateTime.value = new Date().toLocaleTimeString('zh-CN', {hour12: false});
+          lastUpdateTime.value = new Date().toLocaleTimeString(localeMap[currentLocale.value].htmlLang, { hour12: false });
         } else {
           console.warn(result.msg);
           // 如果是 502/504 等代理错误，提示一下
@@ -204,6 +389,7 @@ const app = createApp({
 
     onMounted(() => {
       initializeTheme();
+      initializeLocale();
       loadConfig();
     });
 
@@ -225,7 +411,11 @@ const app = createApp({
       currentTheme,
       themeIcon,
       themeText,
+      localeText,
+      currentLocale,
       handleThemeChange,
+      handleLocaleChange,
+      translate,
       // 工具函数
       safeNumber,
       formatBytes,

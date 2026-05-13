@@ -26,17 +26,27 @@ def load_config():
         print(f"Config file not found at: {CONFIG_FILE}")
     return {"servers": []}
 
+
+def no_cache_response(response):
+    """Prevent browsers from keeping stale dashboard assets."""
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
 @app.route('/')
 def serve_index():
     """提供前端主页面"""
-    return send_from_directory(os.path.join(CURRENT_DIR, '..', 'front'), 'index.html')
+    response = make_response(send_from_directory(os.path.join(CURRENT_DIR, '..', 'front'), 'index.html'))
+    return no_cache_response(response)
 
 @app.route('/<path:filename>')
 def serve_static(filename):
     """提供 front/ 目录下的静态资源（app.js, style.css 等）"""
     # 安全限制：只允许特定后缀，防止路径遍历
     if filename.endswith(('.js', '.css', '.html', '.json', '.png', '.jpg', '.ico')):
-        return send_from_directory(os.path.join(CURRENT_DIR, '..', 'front'), filename)
+        response = make_response(send_from_directory(os.path.join(CURRENT_DIR, '..', 'front'), filename))
+        return no_cache_response(response)
     else:
         return jsonify({"error": "File not allowed"}), 403
 
