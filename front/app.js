@@ -1,18 +1,22 @@
 // front/app.js
 const { createApp, ref, computed, onMounted, onUnmounted, watch } = Vue;
-const { Monitor, Refresh, Loading, Download, Upload, Sunny, Moon, Sunrise } = ElementPlusIconsVue;
+const {
+  Monitor, Refresh, Download, Upload, Sunny, Moon, Sunrise,
+  WarningFilled, CircleCheckFilled, Clock, Connection, DataLine,
+} = ElementPlusIconsVue;
 
-// --- 配置区域 ---
-// 如果你直接打开 html 文件，请将下面地址改为 dashboard.py 运行的地址
-// 例如: const API_BASE_URL = 'http://127.0.0.1:8080';
-// 如果 dashboard.py 和 html 在同一个 web server 下（通过 nginx 反代），可以留空
-const API_BASE_URL = ''; 
+const API_BASE_URL = '';
+const REFRESH_INTERVAL = 3000;
+const STALE_AFTER = REFRESH_INTERVAL * 3;
+const MAX_SAMPLES = 20;
 
 const app = createApp({
-  components: { Monitor, Loading, Download, Upload, Sunny, Moon, Sunrise },
+  components: {
+    Monitor, Download, Upload, Sunny, Moon, Sunrise,
+    WarningFilled, CircleCheckFilled, Clock, Connection, DataLine,
+  },
   setup() {
     const RefreshIcon = Refresh;
-
     const localeMap = {
       zh: { label: '中文', htmlLang: 'zh-CN' },
       en: { label: 'English', htmlLang: 'en' },
@@ -21,412 +25,402 @@ const app = createApp({
 
     const translations = {
       zh: {
-        appTitle: 'GPU 监控看板',
-        appSubtitle: '实时可视化 GPU、CPU、内存与进程状态',
-        updatedAt: '更新于',
-        selectServer: '选择节点',
-        language: '语言',
-        autoRefresh: '自动刷新',
-        theme: {
-          auto: '自动',
-          light: '白天',
-          dark: '夜间',
-        },
-        themeMenu: {
-          auto: '自动切换',
-          light: '白天模式',
-          dark: '夜间模式',
-        },
-        metrics: {
-          cpu: 'CPU 负载',
-          memory: '内存使用',
-          networkDown: '网络下行',
-          networkUp: '网络上行',
-          gpuOnline: 'GPU 在线数量',
-          vram: '显存 (VRAM)',
-          utilization: '核心利用率',
-          power: '实时功耗',
-          fan: '风扇转速',
-          memoryUsage: '显存占比',
-          activeProcesses: '活跃进程',
-        },
-        table: {
-          pid: 'PID',
-          user: '用户',
-          processName: '进程名',
-          memory: '显存占用',
-          command: '命令',
-          empty: '无活跃进程',
-        },
-        errors: {
-          noConfigTitle: '无法连接',
-          noConfigDesc: '未找到服务器配置，请检查 config.json',
-          loadServerList: '无法加载服务器列表，请检查 Dashboard 是否运行',
-          fetchFailed: (message) => `获取数据失败: ${message}`,
-        },
-        footer: {
-          line1: '© 2026 GPU 集群监控面板 | Powered by Shushu Internet Center in Anhui University',
-          line2: 'Designed for AI Researchers and Developers',
-        },
+        appTitle: 'GPU 集群监控', appSubtitle: '实时掌握节点资源、GPU 负载与计算进程',
+        node: '计算节点', selectServer: '选择节点', language: '语言', themeLabel: '外观',
+        autoRefresh: '自动刷新', refresh: '立即刷新', retry: '重新连接', updatedAt: '更新于',
+        status: { live: '数据在线', refreshing: '正在刷新', stale: '数据已过期', error: '连接异常', loading: '正在连接', idle: '等待数据' },
+        relative: { now: '刚刚', seconds: (n) => `${n} 秒前`, minutes: (n) => `${n} 分钟前` },
+        theme: { auto: '自动', light: '白天', dark: '夜间' },
+        themeMenu: { auto: '跟随系统', light: '白天模式', dark: '夜间模式' },
+        overview: { title: '节点概览', subtitle: '关键资源与工作负载概况', gpuCount: '在线 GPU', avgGpu: '平均 GPU 利用率', totalVram: '总显存占用', processes: '活跃进程', cpu: 'CPU 使用率', memory: '内存使用率' },
+        resources: { title: '系统资源', subtitle: '当前负载与累计网络流量', cpuDetail: 'CPU 详情', memoryDetail: '内存详情', totalReceived: '累计接收', totalSent: '累计发送', recentRate: '近期速率', collecting: '正在收集样本', cores: (n) => `${n} 核`, frequency: '当前频率' },
+        trend: { title: '近期利用率', subtitle: '本次浏览会话 · 最近 20 个采样点', cpu: 'CPU', memory: '内存', gpu: 'GPU 平均', waiting: '至少需要 2 个样本，趋势将在下次刷新后显示', details: '查看采样数据', time: '时间' },
+        gpu: { title: 'GPU 设备', subtitle: '逐卡负载、热状态与进程', emptyTitle: '当前节点未检测到 GPU', emptyDesc: '系统资源仍可正常查看，请确认 NVIDIA 驱动与 NVML 状态。', utilization: '核心利用率', vram: '显存占用', temperature: '温度', power: '实时功耗', powerLimit: '功耗上限', fan: '风扇转速', memoryUtil: '显存控制器', normal: '温度正常', warm: '温度偏高', critical: '温度危险', unknown: '温度未知' },
+        process: { title: '计算进程', count: (n) => `${n} 个进程`, pid: 'PID', user: '用户', name: '进程名', memory: '显存占用', command: '命令', empty: '该 GPU 暂无活跃计算进程' },
+        units: { cards: (n) => `${n} 张`, unavailable: '不可用' },
+        errors: { noConfigTitle: '未配置计算节点', noConfigDesc: '未找到服务器配置，请检查 front/config.json。', configFailedTitle: '无法加载节点配置', loadServerList: '无法加载服务器列表，请确认 Dashboard 服务正在运行。', nodeFailedTitle: '无法获取当前节点数据', nodeFailedDesc: '已保留最近一次有效数据。请检查节点网络或 Agent 服务后重试。', fetchFailed: (m) => `获取数据失败：${m}` },
+        footer: { line1: '© 2026 GPU 集群监控面板 · Shushu Internet Center, Anhui University', line2: '为 AI 研究与高性能计算而设计' },
       },
       en: {
-        appTitle: 'GPU Monitor Dashboard',
-        appSubtitle: 'Live telemetry for GPU, CPU, memory, and processes',
-        updatedAt: 'Updated at',
-        selectServer: 'Select node',
-        language: 'Language',
-        autoRefresh: 'Auto refresh',
-        theme: {
-          auto: 'Auto',
-          light: 'Light',
-          dark: 'Dark',
-        },
-        themeMenu: {
-          auto: 'Auto switch',
-          light: 'Light mode',
-          dark: 'Dark mode',
-        },
-        metrics: {
-          cpu: 'CPU Load',
-          memory: 'Memory Usage',
-          networkDown: 'Network In',
-          networkUp: 'Network Out',
-          gpuOnline: 'Online GPUs',
-          vram: 'VRAM',
-          utilization: 'Core Utilization',
-          power: 'Live Power',
-          fan: 'Fan Speed',
-          memoryUsage: 'VRAM Usage',
-          activeProcesses: 'Active Processes',
-        },
-        table: {
-          pid: 'PID',
-          user: 'User',
-          processName: 'Process',
-          memory: 'GPU Memory',
-          command: 'Command',
-          empty: 'No active processes',
-        },
-        errors: {
-          noConfigTitle: 'Connection failed',
-          noConfigDesc: 'No server configuration found. Check config.json.',
-          loadServerList: 'Unable to load server list. Check whether Dashboard is running.',
-          fetchFailed: (message) => `Failed to fetch data: ${message}`,
-        },
-        footer: {
-          line1: '© 2026 GPU Monitor Dashboard | Powered by Shushu Internet Center in Anhui University',
-          line2: 'Designed for AI Researchers and Developers',
-        },
+        appTitle: 'GPU Cluster Monitor', appSubtitle: 'Live node resources, GPU workloads, and compute processes',
+        node: 'Compute node', selectServer: 'Select node', language: 'Language', themeLabel: 'Appearance',
+        autoRefresh: 'Auto refresh', refresh: 'Refresh now', retry: 'Reconnect', updatedAt: 'Updated',
+        status: { live: 'Data online', refreshing: 'Refreshing', stale: 'Data is stale', error: 'Connection issue', loading: 'Connecting', idle: 'Waiting for data' },
+        relative: { now: 'just now', seconds: (n) => `${n}s ago`, minutes: (n) => `${n}m ago` },
+        theme: { auto: 'Auto', light: 'Light', dark: 'Dark' },
+        themeMenu: { auto: 'Follow system', light: 'Light mode', dark: 'Dark mode' },
+        overview: { title: 'Node overview', subtitle: 'Key resources and workload at a glance', gpuCount: 'Online GPUs', avgGpu: 'Average GPU utilization', totalVram: 'Total VRAM used', processes: 'Active processes', cpu: 'CPU utilization', memory: 'Memory utilization' },
+        resources: { title: 'System resources', subtitle: 'Current load and cumulative network traffic', cpuDetail: 'CPU details', memoryDetail: 'Memory details', totalReceived: 'Total received', totalSent: 'Total sent', recentRate: 'Recent rate', collecting: 'Collecting samples', cores: (n) => `${n} cores`, frequency: 'Current frequency' },
+        trend: { title: 'Recent utilization', subtitle: 'This browser session · latest 20 samples', cpu: 'CPU', memory: 'Memory', gpu: 'GPU average', waiting: 'At least 2 samples are needed. The trend will appear after the next refresh.', details: 'View sample data', time: 'Time' },
+        gpu: { title: 'GPU devices', subtitle: 'Per-device workload, thermal state, and processes', emptyTitle: 'No GPU detected on this node', emptyDesc: 'System resources remain available. Check the NVIDIA driver and NVML status.', utilization: 'Core utilization', vram: 'VRAM used', temperature: 'Temperature', power: 'Live power', powerLimit: 'Power limit', fan: 'Fan speed', memoryUtil: 'Memory controller', normal: 'Temperature normal', warm: 'Temperature high', critical: 'Temperature critical', unknown: 'Temperature unavailable' },
+        process: { title: 'Compute processes', count: (n) => `${n} processes`, pid: 'PID', user: 'User', name: 'Process', memory: 'GPU memory', command: 'Command', empty: 'No active compute process on this GPU' },
+        units: { cards: (n) => `${n} cards`, unavailable: 'Unavailable' },
+        errors: { noConfigTitle: 'No compute nodes configured', noConfigDesc: 'No server configuration was found. Check front/config.json.', configFailedTitle: 'Unable to load node configuration', loadServerList: 'Unable to load the server list. Make sure Dashboard is running.', nodeFailedTitle: 'Unable to retrieve node data', nodeFailedDesc: 'The latest valid data is preserved. Check the node network or Agent service and retry.', fetchFailed: (m) => `Failed to fetch data: ${m}` },
+        footer: { line1: '© 2026 GPU Cluster Monitor · Shushu Internet Center, Anhui University', line2: 'Designed for AI research and high-performance computing' },
       },
       ja: {
-        appTitle: 'GPU モニターダッシュボード',
-        appSubtitle: 'GPU、CPU、メモリ、プロセスの状態をリアルタイム表示',
-        updatedAt: '更新時刻',
-        selectServer: 'ノードを選択',
-        language: '言語',
-        autoRefresh: '自動更新',
-        theme: {
-          auto: '自動',
-          light: 'ライト',
-          dark: 'ダーク',
-        },
-        themeMenu: {
-          auto: '自動切替',
-          light: 'ライトモード',
-          dark: 'ダークモード',
-        },
-        metrics: {
-          cpu: 'CPU 使用率',
-          memory: 'メモリ使用量',
-          networkDown: '受信トラフィック',
-          networkUp: '送信トラフィック',
-          gpuOnline: '稼働中 GPU 数',
-          vram: 'VRAM',
-          utilization: 'コア使用率',
-          power: 'リアルタイム消費電力',
-          fan: 'ファン回転数',
-          memoryUsage: 'VRAM 使用率',
-          activeProcesses: 'アクティブプロセス',
-        },
-        table: {
-          pid: 'PID',
-          user: 'ユーザー',
-          processName: 'プロセス名',
-          memory: 'GPU メモリ',
-          command: 'コマンド',
-          empty: 'アクティブなプロセスはありません',
-        },
-        errors: {
-          noConfigTitle: '接続できません',
-          noConfigDesc: 'サーバー設定が見つかりません。config.json を確認してください。',
-          loadServerList: 'サーバー一覧を読み込めません。Dashboard の起動状態を確認してください。',
-          fetchFailed: (message) => `データ取得に失敗しました: ${message}`,
-        },
-        footer: {
-          line1: '© 2026 GPU モニターダッシュボード | Anhui University Shushu Internet Center',
-          line2: 'AI 研究者と開発者のために設計',
-        },
+        appTitle: 'GPU クラスターモニター', appSubtitle: 'ノード資源、GPU 負荷、計算プロセスをリアルタイム監視',
+        node: '計算ノード', selectServer: 'ノードを選択', language: '言語', themeLabel: '外観',
+        autoRefresh: '自動更新', refresh: '今すぐ更新', retry: '再接続', updatedAt: '更新',
+        status: { live: 'データオンライン', refreshing: '更新中', stale: 'データが古くなっています', error: '接続異常', loading: '接続中', idle: 'データ待機中' },
+        relative: { now: 'たった今', seconds: (n) => `${n} 秒前`, minutes: (n) => `${n} 分前` },
+        theme: { auto: '自動', light: 'ライト', dark: 'ダーク' },
+        themeMenu: { auto: 'システムに従う', light: 'ライトモード', dark: 'ダークモード' },
+        overview: { title: 'ノード概要', subtitle: '主要リソースとワークロード', gpuCount: 'オンライン GPU', avgGpu: '平均 GPU 使用率', totalVram: '総 VRAM 使用量', processes: 'アクティブプロセス', cpu: 'CPU 使用率', memory: 'メモリ使用率' },
+        resources: { title: 'システムリソース', subtitle: '現在の負荷と累積ネットワーク通信量', cpuDetail: 'CPU 詳細', memoryDetail: 'メモリ詳細', totalReceived: '累積受信', totalSent: '累積送信', recentRate: '直近の速度', collecting: 'サンプル収集中', cores: (n) => `${n} コア`, frequency: '現在の周波数' },
+        trend: { title: '最近の使用率', subtitle: 'このブラウザーセッション · 最新 20 サンプル', cpu: 'CPU', memory: 'メモリ', gpu: 'GPU 平均', waiting: '2 件以上のサンプルが必要です。次回更新後に表示されます。', details: 'サンプルデータを表示', time: '時刻' },
+        gpu: { title: 'GPU デバイス', subtitle: 'デバイス別の負荷、温度、プロセス', emptyTitle: 'このノードで GPU が検出されません', emptyDesc: 'システムリソースは表示できます。NVIDIA ドライバーと NVML を確認してください。', utilization: 'コア使用率', vram: 'VRAM 使用量', temperature: '温度', power: '現在の電力', powerLimit: '電力上限', fan: 'ファン速度', memoryUtil: 'メモリコントローラー', normal: '温度正常', warm: '温度高め', critical: '温度危険', unknown: '温度不明' },
+        process: { title: '計算プロセス', count: (n) => `${n} プロセス`, pid: 'PID', user: 'ユーザー', name: 'プロセス', memory: 'GPU メモリ', command: 'コマンド', empty: 'この GPU にアクティブな計算プロセスはありません' },
+        units: { cards: (n) => `${n} 枚`, unavailable: '利用不可' },
+        errors: { noConfigTitle: '計算ノードが未設定です', noConfigDesc: 'サーバー設定がありません。front/config.json を確認してください。', configFailedTitle: 'ノード設定を読み込めません', loadServerList: 'サーバー一覧を読み込めません。Dashboard の起動状態を確認してください。', nodeFailedTitle: 'ノードデータを取得できません', nodeFailedDesc: '直近の有効データを保持しています。ネットワークまたは Agent を確認して再試行してください。', fetchFailed: (m) => `データ取得失敗：${m}` },
+        footer: { line1: '© 2026 GPU クラスターモニター · 安徽大学 Shushu Internet Center', line2: 'AI 研究とハイパフォーマンスコンピューティングのために設計' },
       },
     };
-    
-    // 核心数据
+
     const servers = ref([]);
     const selectedServerId = ref(null);
     const currentData = ref(null);
     const loading = ref(true);
-    const lastUpdateTime = ref('');
+    const configLoading = ref(true);
+    const configError = ref('');
+    const nodeError = ref('');
+    const lastUpdateAt = ref(null);
     const autoRefresh = ref(false);
     const refreshTimer = ref(null);
     const currentLocale = ref('zh');
+    const currentTheme = ref('auto');
+    const requestController = ref(null);
+    const requestSequence = ref(0);
+    const samplesByServer = ref({});
+    const dataByServer = ref({});
+    const freshnessTick = ref(0);
+    const activeTrendIndex = ref(null);
+    let freshnessTimer = null;
+    let themeMediaQuery = null;
+    let themeMediaListener = null;
 
-    // 夜间模式相关
-    const currentTheme = ref('auto'); // 'auto', 'light', 'dark'
-    const themeIcon = computed(() => {
-      if (currentTheme.value === 'light') return Sunny;
-      if (currentTheme.value === 'dark') return Moon;
-      return Sunrise;
-    });
-    const translate = (key, fallback = '') => {
+    const translate = (key, ...args) => {
       const locale = translations[currentLocale.value] || translations.zh;
-      const value = key.split('.').reduce((accumulator, segment) => accumulator?.[segment], locale);
-      return value ?? fallback ?? key;
+      const value = key.split('.').reduce((acc, part) => acc?.[part], locale);
+      return typeof value === 'function' ? value(...args) : (value ?? key);
     };
-    const themeText = computed(() => translate(`theme.${currentTheme.value}`));
     const localeText = computed(() => localeMap[currentLocale.value]?.label || '中文');
-
-    // 颜色阈值
-    const colors = [
-      { color: '#67c23a', percentage: 60 },
-      { color: '#e6a23c', percentage: 85 },
-      { color: '#f56c6c', percentage: 100 },
-    ];
-
-    // 计算属性
-    const selectedServer = computed(() => servers.value.find(s => s.id === selectedServerId.value));
+    const themeText = computed(() => translate(`theme.${currentTheme.value}`));
+    const themeIcon = computed(() => currentTheme.value === 'light' ? Sunny : currentTheme.value === 'dark' ? Moon : Sunrise);
+    const selectedServer = computed(() => servers.value.find((server) => server.id === selectedServerId.value));
     const gpuList = computed(() => currentData.value?.gpu?.gpus || []);
 
-    // 工具函数
-    const safeNumber = (val) => val === undefined || val === null ? 0 : Number(val);
-    
-    const formatBytes = (bytes) => {
-        if (!+bytes) return '0 B';
-        const k = 1024;
-        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+    const finiteNumber = (value, fallback = null) => {
+      if (value === '' || value === null || value === undefined) return fallback;
+      const number = Number(value);
+      return Number.isFinite(number) ? number : fallback;
     };
-
-    const getTempStatus = (temp) => {
-        if (temp < 65) return 'success';
-        if (temp < 82) return 'warning';
-        return 'danger';
+    const safeNumber = (value) => finiteNumber(value, 0);
+    const clampPercent = (value) => Math.min(100, Math.max(0, safeNumber(value)));
+    const formatNumber = (value, digits = 0) => {
+      const number = finiteNumber(value);
+      return number === null ? translate('units.unavailable') : number.toLocaleString(localeMap[currentLocale.value].htmlLang, { minimumFractionDigits: digits, maximumFractionDigits: digits });
     };
-
-    const getValColorClass = (val) => {
-        if (val > 85) return 'text-danger';
-        if (val > 60) return 'text-warning';
-        return 'text-success';
+    const formatPercent = (value, digits = 0) => finiteNumber(value) === null ? translate('units.unavailable') : `${formatNumber(value, digits)}%`;
+    const formatBytes = (bytes, perSecond = false) => {
+      const number = finiteNumber(bytes);
+      if (number === null || number < 0) return translate('units.unavailable');
+      if (number === 0) return `0 B${perSecond ? '/s' : ''}`;
+      const sizes = ['B', 'KB', 'MB', 'GB', 'TB', 'PB'];
+      const index = Math.min(Math.floor(Math.log(number) / Math.log(1024)), sizes.length - 1);
+      const value = number / Math.pow(1024, index);
+      return `${formatNumber(value, value >= 10 ? 0 : 1)} ${sizes[index]}${perSecond ? '/s' : ''}`;
     };
-
-    // 显存百分比计算
+    const formatFrequency = (mhz) => finiteNumber(mhz) === null ? translate('units.unavailable') : `${formatNumber(mhz / 1000, 1)} GHz`;
+    const formatPower = (milliwatts) => finiteNumber(milliwatts) === null ? translate('units.unavailable') : `${formatNumber(milliwatts / 1000, 0)} W`;
+    const formatTemperature = (value) => finiteNumber(value) === null ? translate('units.unavailable') : `${formatNumber(value, 0)} °C`;
     const calcMemoryPercent = (gpu) => {
-        if (!gpu || !gpu.memory || !gpu.memory.total) return 0;
-        const pct = (gpu.memory.used / gpu.memory.total) * 100;
-        return Math.round(Math.min(Math.max(pct, 0), 100));
+      if (!gpu?.memory || !finiteNumber(gpu.memory.total)) return 0;
+      return Math.round(clampPercent((safeNumber(gpu.memory.used) / gpu.memory.total) * 100));
+    };
+    const getTempStatus = (temp) => finiteNumber(temp) === null ? 'info' : temp < 65 ? 'success' : temp < 82 ? 'warning' : 'danger';
+    const getValColorClass = (value) => value > 85 ? 'text-danger' : value > 60 ? 'text-warning' : 'text-success';
+    const getTemperatureState = (temp) => {
+      const number = finiteNumber(temp);
+      if (number === null) return { key: 'unknown', type: 'info', label: translate('gpu.unknown') };
+      if (number < 65) return { key: 'normal', type: 'success', label: translate('gpu.normal') };
+      if (number < 82) return { key: 'warm', type: 'warning', label: translate('gpu.warm') };
+      return { key: 'critical', type: 'danger', label: translate('gpu.critical') };
     };
 
-    // 夜间模式相关函数
+    const normalizeStatusData = (raw = {}) => {
+      const system = raw.system || {};
+      const cpu = system.cpu || {};
+      const memory = system.memory || {};
+      const network = system.network || {};
+      const rawGpus = Array.isArray(raw.gpu?.gpus) ? raw.gpu.gpus : [];
+      const gpus = rawGpus.map((gpu, position) => {
+        const gpuMemory = gpu?.memory || {};
+        const total = finiteNumber(gpuMemory.total, finiteNumber(gpuMemory.total_gb) !== null ? gpuMemory.total_gb * 1024 ** 3 : 0);
+        const used = finiteNumber(gpuMemory.used, finiteNumber(gpuMemory.used_gb) !== null ? gpuMemory.used_gb * 1024 ** 3 : 0);
+        const processes = Array.isArray(gpu?.processes) ? gpu.processes.map((process) => ({
+          pid: process?.pid ?? '—', username: process?.username || '—', name: process?.name || '—',
+          gpu_memory: finiteNumber(process?.gpu_memory), command: process?.command || '—',
+        })) : [];
+        return {
+          index: gpu?.index ?? position, uuid: gpu?.uuid || `gpu-${position}`, name: gpu?.name || `GPU ${position}`,
+          memory: { used, total, used_gb: used / 1024 ** 3, total_gb: total / 1024 ** 3, percent: total > 0 ? Math.round(clampPercent((used / total) * 100)) : 0 },
+          utilization: { gpu: clampPercent(gpu?.utilization?.gpu), memory: clampPercent(gpu?.utilization?.memory) },
+          temperature: finiteNumber(gpu?.temperature), power: { usage: finiteNumber(gpu?.power?.usage), limit: finiteNumber(gpu?.power?.limit) },
+          fan_speed: finiteNumber(gpu?.fan_speed), processes, process_count: processes.length,
+        };
+      });
+      const derived = {
+        avg_gpu_utilization: gpus.length ? Math.round(gpus.reduce((sum, gpu) => sum + gpu.utilization.gpu, 0) / gpus.length) : 0,
+        total_memory_used: gpus.reduce((sum, gpu) => sum + safeNumber(gpu.memory.used), 0),
+        total_memory_total: gpus.reduce((sum, gpu) => sum + safeNumber(gpu.memory.total), 0),
+        total_processes: gpus.reduce((sum, gpu) => sum + gpu.process_count, 0),
+      };
+      const summary = raw.gpu?.summary || {};
+      return {
+        system: {
+          cpu: { percent: clampPercent(cpu.percent), count: finiteNumber(cpu.count, 0), frequency_current: finiteNumber(cpu.frequency_current) },
+          memory: { percent: clampPercent(memory.percent), used: finiteNumber(memory.used, 0), total: finiteNumber(memory.total, 0) },
+          network: { bytes_recv: finiteNumber(network.bytes_recv, 0), bytes_sent: finiteNumber(network.bytes_sent, 0) },
+        },
+        gpu: { gpus, summary: {
+          avg_gpu_utilization: finiteNumber(summary.avg_gpu_utilization, derived.avg_gpu_utilization),
+          total_memory_used: finiteNumber(summary.total_memory_used, derived.total_memory_used),
+          total_memory_total: finiteNumber(summary.total_memory_total, derived.total_memory_total),
+          total_processes: finiteNumber(summary.total_processes, derived.total_processes),
+        } },
+        timestamp: raw.timestamp || new Date().toISOString(),
+      };
+    };
+
+    const summaryMetrics = computed(() => {
+      const data = currentData.value;
+      if (!data) return [];
+      const summary = data.gpu.summary;
+      return [
+        { key: 'gpus', label: translate('overview.gpuCount'), value: translate('units.cards', gpuList.value.length), detail: selectedServer.value?.name || '—', percent: null },
+        { key: 'gpu', label: translate('overview.avgGpu'), value: formatPercent(summary.avg_gpu_utilization), detail: translate('gpu.utilization'), percent: summary.avg_gpu_utilization },
+        { key: 'vram', label: translate('overview.totalVram'), value: formatPercent(summary.total_memory_total ? summary.total_memory_used / summary.total_memory_total * 100 : 0), detail: `${formatBytes(summary.total_memory_used)} / ${formatBytes(summary.total_memory_total)}`, percent: summary.total_memory_total ? summary.total_memory_used / summary.total_memory_total * 100 : 0 },
+        { key: 'processes', label: translate('overview.processes'), value: formatNumber(summary.total_processes), detail: translate('process.count', summary.total_processes), percent: null },
+        { key: 'cpu', label: translate('overview.cpu'), value: formatPercent(data.system.cpu.percent, 1), detail: translate('resources.cores', data.system.cpu.count), percent: data.system.cpu.percent },
+        { key: 'memory', label: translate('overview.memory'), value: formatPercent(data.system.memory.percent, 1), detail: `${formatBytes(data.system.memory.used)} / ${formatBytes(data.system.memory.total)}`, percent: data.system.memory.percent },
+      ];
+    });
+
+    const currentSamples = computed(() => samplesByServer.value[selectedServerId.value] || []);
+    const networkRates = computed(() => {
+      const samples = currentSamples.value;
+      if (samples.length < 2) return null;
+      const previous = samples[samples.length - 2];
+      const latest = samples[samples.length - 1];
+      const elapsed = (latest.time - previous.time) / 1000;
+      if (elapsed <= 0 || latest.received < previous.received || latest.sent < previous.sent) return null;
+      return { received: (latest.received - previous.received) / elapsed, sent: (latest.sent - previous.sent) / elapsed };
+    });
+    const trendSeries = computed(() => {
+      const samples = currentSamples.value;
+      if (samples.length < 2) return [];
+      const width = 600;
+      const height = 180;
+      const pointsFor = (key) => samples.map((sample, index) => `${(index / (samples.length - 1)) * width},${height - clampPercent(sample[key]) / 100 * height}`).join(' ');
+      return [
+        { key: 'cpu', label: translate('trend.cpu'), points: pointsFor('cpu') },
+        { key: 'memory', label: translate('trend.memory'), points: pointsFor('memory') },
+        { key: 'gpu', label: translate('trend.gpu'), points: pointsFor('gpu') },
+      ];
+    });
+    const activeTrendSample = computed(() => {
+      const samples = currentSamples.value;
+      const index = activeTrendIndex.value;
+      if (index === null || !samples[index]) return null;
+      const sample = samples[index];
+      const x = samples.length > 1 ? index / (samples.length - 1) * 600 : 0;
+      return {
+        index,
+        x,
+        position: `${x / 6}%`,
+        time: new Date(sample.time).toLocaleTimeString(localeMap[currentLocale.value].htmlLang, { hour12: false }),
+        values: trendSeries.value.map((series) => ({
+          key: series.key,
+          label: series.label,
+          value: formatPercent(sample[series.key], 1),
+          y: 180 - clampPercent(sample[series.key]) / 100 * 180,
+        })),
+      };
+    });
+    const updateTrendHover = (event) => {
+      const samples = currentSamples.value;
+      if (samples.length < 2) return;
+      const rect = event.currentTarget.getBoundingClientRect();
+      const pointerX = event.touches?.[0]?.clientX ?? event.clientX;
+      const ratio = Math.min(1, Math.max(0, (pointerX - rect.left) / rect.width));
+      activeTrendIndex.value = Math.round(ratio * (samples.length - 1));
+    };
+    const clearTrendHover = () => { activeTrendIndex.value = null; };
+    const isDataStale = computed(() => {
+      freshnessTick.value;
+      return !!lastUpdateAt.value && Date.now() - lastUpdateAt.value > STALE_AFTER;
+    });
+    const relativeUpdate = computed(() => {
+      freshnessTick.value;
+      if (!lastUpdateAt.value) return '';
+      const seconds = Math.max(0, Math.floor((Date.now() - lastUpdateAt.value) / 1000));
+      if (seconds < 5) return translate('relative.now');
+      if (seconds < 60) return translate('relative.seconds', seconds);
+      return translate('relative.minutes', Math.floor(seconds / 60));
+    });
+    const lastUpdateTime = computed(() => lastUpdateAt.value ? new Date(lastUpdateAt.value).toLocaleTimeString(localeMap[currentLocale.value].htmlLang, { hour12: false }) : '');
+    const connectionState = computed(() => {
+      if (loading.value && !currentData.value) return { key: 'loading', label: translate('status.loading'), icon: 'clock' };
+      if (nodeError.value) return { key: 'error', label: translate('status.error'), icon: 'warning' };
+      if (isDataStale.value) return { key: 'stale', label: translate('status.stale'), icon: 'warning' };
+      if (loading.value) return { key: 'refreshing', label: translate('status.refreshing'), icon: 'clock' };
+      if (currentData.value) return { key: 'live', label: translate('status.live'), icon: 'check' };
+      return { key: 'idle', label: translate('status.idle'), icon: 'clock' };
+    });
+
     const applyTheme = (theme) => {
-      if (theme === 'auto') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
-      } else {
-        document.documentElement.setAttribute('data-theme', theme);
-      }
+      const resolved = theme === 'auto' ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light') : theme;
+      document.documentElement.setAttribute('data-theme', resolved);
     };
-
+    const handleThemeChange = (theme) => { currentTheme.value = theme; localStorage.setItem('theme-preference', theme); applyTheme(theme); };
     const applyLocale = (locale) => {
-      const normalizedLocale = localeMap[locale] ? locale : 'zh';
-      currentLocale.value = normalizedLocale;
-      document.documentElement.lang = localeMap[normalizedLocale].htmlLang;
-      localStorage.setItem('locale-preference', normalizedLocale);
+      const normalized = localeMap[locale] ? locale : 'zh';
+      currentLocale.value = normalized;
+      document.documentElement.lang = localeMap[normalized].htmlLang;
+      localStorage.setItem('locale-preference', normalized);
+    };
+    const handleLocaleChange = applyLocale;
+    watch(currentLocale, () => { document.title = translate('appTitle'); }, { immediate: true });
+
+    const fetchApi = (endpoint, options = {}) => {
+      const base = API_BASE_URL.replace(/\/$/, '');
+      const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+      return fetch(`${base}${path}`, options);
+    };
+    const readResponse = async (response) => {
+      const text = await response.text();
+      let result = null;
+      try { result = text ? JSON.parse(text) : null; } catch (_) { /* handled below */ }
+      if (!response.ok) throw new Error(result?.msg || `HTTP ${response.status}`);
+      if (!result) throw new Error('Invalid JSON response');
+      return result;
+    };
+    const recordSample = (serverId, data) => {
+      const sample = {
+        time: Date.now(), cpu: data.system.cpu.percent, memory: data.system.memory.percent,
+        gpu: data.gpu.summary.avg_gpu_utilization, received: data.system.network.bytes_recv, sent: data.system.network.bytes_sent,
+      };
+      const existing = samplesByServer.value[serverId] || [];
+      samplesByServer.value = { ...samplesByServer.value, [serverId]: [...existing, sample].slice(-MAX_SAMPLES) };
+    };
+    const clearRefreshTimer = () => {
+      if (refreshTimer.value) window.clearTimeout(refreshTimer.value);
+      refreshTimer.value = null;
+    };
+    const scheduleRefresh = () => {
+      clearRefreshTimer();
+      if (autoRefresh.value) refreshTimer.value = window.setTimeout(() => loadSelectedServerData('auto'), REFRESH_INTERVAL);
     };
 
-    const handleThemeChange = (command) => {
-      currentTheme.value = command;
-      localStorage.setItem('theme-preference', command);
-      applyTheme(command);
-    };
-
-    const handleLocaleChange = (command) => {
-      applyLocale(command);
-    };
-
-    const initializeTheme = () => {
-      const savedTheme = localStorage.getItem('theme-preference');
-      if (savedTheme) {
-        currentTheme.value = savedTheme;
-      } else {
-        currentTheme.value = 'auto';
+    const loadSelectedServerData = async (source = 'manual') => {
+      const serverId = selectedServerId.value;
+      if (!serverId || !selectedServer.value) return;
+      clearRefreshTimer();
+      if (requestController.value) requestController.value.abort();
+      const controller = new AbortController();
+      requestController.value = controller;
+      const sequence = ++requestSequence.value;
+      loading.value = true;
+      nodeError.value = '';
+      try {
+        const response = await fetchApi(`/api/proxy?id=${encodeURIComponent(serverId)}`, { signal: controller.signal });
+        const result = await readResponse(response);
+        if (result.code !== 200) throw new Error(result.msg || `API ${result.code}`);
+        if (sequence !== requestSequence.value || selectedServerId.value !== serverId) return;
+        const normalized = normalizeStatusData(result.data);
+        currentData.value = normalized;
+        dataByServer.value = { ...dataByServer.value, [serverId]: normalized };
+        lastUpdateAt.value = Date.now();
+        recordSample(serverId, normalized);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        if (sequence !== requestSequence.value || selectedServerId.value !== serverId) return;
+        nodeError.value = error.message || translate('errors.nodeFailedTitle');
+        if (source === 'manual') ElementPlus.ElMessage.warning(translate('errors.fetchFailed', nodeError.value));
+      } finally {
+        if (sequence === requestSequence.value) {
+          loading.value = false;
+          requestController.value = null;
+          scheduleRefresh();
+        }
       }
-      applyTheme(currentTheme.value);
-
-      // 监听系统主题变化（仅在自动模式下）
-      if (window.matchMedia) {
-        const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-        mediaQuery.addEventListener('change', (e) => {
-          if (currentTheme.value === 'auto') {
-            document.documentElement.setAttribute('data-theme', e.matches ? 'dark' : 'light');
-          }
-        });
-      }
-    };
-
-    const initializeLocale = () => {
-      const savedLocale = localStorage.getItem('locale-preference');
-      const browserLocale = (navigator.language || '').toLowerCase();
-      const defaultLocale = browserLocale.startsWith('en') ? 'en' : browserLocale.startsWith('ja') ? 'ja' : 'zh';
-      applyLocale(savedLocale || defaultLocale);
-    };
-
-    watch(currentLocale, () => {
-      document.title = translate('appTitle');
-    }, { immediate: true });
-
-    // --- 数据逻辑 ---
-    
-    // 封装 fetch，自动添加 Base URL
-    const fetchApi = async (endpoint) => {
-        // 处理拼接 / 的问题
-        const baseUrl = API_BASE_URL.replace(/\/$/, '');
-        const url = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-        return fetch(`${baseUrl}${url}`);
     };
 
     const loadConfig = async () => {
+      configLoading.value = true;
+      configError.value = '';
       try {
-        // 请求 dashboard.py 的 /api/config
         const response = await fetchApi('/api/config');
-        if (!response.ok) throw new Error(`Config load error: ${response.status}`);
-        const config = await response.json();
-        
-        servers.value = config.servers || [];
-        
-        // 自动选择第一个
-        if (servers.value.length > 0) {
-          selectedServerId.value = servers.value[0].id;
-          await loadSelectedServerData();
-        }
-      } catch (error) {
-        console.error(error);
-        ElementPlus.ElMessage.error(translate('errors.loadServerList'));
-      } finally {
-        loading.value = false;
-      }
-    };
-
-    const loadSelectedServerData = async () => {
-      if (!selectedServer.value) return;
-      
-      if (!currentData.value) {
-        loading.value = true;
-      }
-      try {
-        // 请求 dashboard.py 的 /api/proxy
-        const url = `/api/proxy?id=${selectedServerId.value}`;
-        
-        const response = await fetchApi(url);
-        const result = await response.json();
-        
-        if (result.code === 200) {
-          currentData.value = result.data;
-          lastUpdateTime.value = new Date().toLocaleTimeString(localeMap[currentLocale.value].htmlLang, { hour12: false });
+        const config = await readResponse(response);
+        servers.value = Array.isArray(config.servers) ? config.servers : [];
+        const saved = localStorage.getItem('selected-server-id');
+        selectedServerId.value = servers.value.some((server) => server.id === saved) ? saved : (servers.value[0]?.id || null);
+        if (selectedServerId.value) {
+          localStorage.setItem('selected-server-id', selectedServerId.value);
+          await loadSelectedServerData('initial');
         } else {
-          console.warn(result.msg);
-          // 如果是 502/504 等代理错误，提示一下
-          if (result.code >= 500) {
-             // 静默失败或轻微提示，避免自动刷新时弹窗太多
-             console.log("代理请求后端失败:", result.msg);
-          }
+          localStorage.removeItem('selected-server-id');
+          loading.value = false;
         }
       } catch (error) {
-        console.error(error);
-        if (!autoRefresh.value) {
-            ElementPlus.ElMessage.warning(`获取数据失败: ${error.message}`);
-        }
-      } finally {
+        configError.value = error.message || translate('errors.loadServerList');
         loading.value = false;
+      } finally {
+        configLoading.value = false;
       }
     };
-
     const handleServerChange = () => {
-        if (refreshTimer.value) {
-            clearInterval(refreshTimer.value);
-            refreshTimer.value = null;
-        }
-        // 切换服务器时，先清空旧数据，给用户加载中的感觉
-        currentData.value = null; 
-        loadSelectedServerData();
-        
-        if (autoRefresh.value) {
-            refreshTimer.value = setInterval(loadSelectedServerData, 3000);
-        }
+      activeTrendIndex.value = null;
+      localStorage.setItem('selected-server-id', selectedServerId.value);
+      requestSequence.value += 1;
+      requestController.value?.abort();
+      nodeError.value = '';
+      lastUpdateAt.value = null;
+      currentData.value = dataByServer.value[selectedServerId.value] || null;
+      loadSelectedServerData('initial');
     };
-
-    const refreshCurrent = () => {
-        loadSelectedServerData();
-    };
-
-    const toggleAutoRefresh = (val) => {
-        if (refreshTimer.value) {
-            clearInterval(refreshTimer.value);
-            refreshTimer.value = null;
-        }
-        if (val) {      
-            refreshTimer.value = setInterval(loadSelectedServerData, 3000);
-        }
-    };
+    const refreshCurrent = () => loadSelectedServerData('manual');
+    const toggleAutoRefresh = () => autoRefresh.value ? scheduleRefresh() : clearRefreshTimer();
 
     onMounted(() => {
-      initializeTheme();
-      initializeLocale();
+      currentTheme.value = localStorage.getItem('theme-preference') || 'auto';
+      applyTheme(currentTheme.value);
+      const browserLocale = (navigator.language || '').toLowerCase();
+      applyLocale(localStorage.getItem('locale-preference') || (browserLocale.startsWith('en') ? 'en' : browserLocale.startsWith('ja') ? 'ja' : 'zh'));
+      themeMediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      themeMediaListener = () => { if (currentTheme.value === 'auto') applyTheme('auto'); };
+      themeMediaQuery.addEventListener('change', themeMediaListener);
+      freshnessTimer = window.setInterval(() => { freshnessTick.value += 1; }, 10000);
       loadConfig();
     });
-
     onUnmounted(() => {
-        if (refreshTimer.value) clearInterval(refreshTimer.value);
+      clearRefreshTimer();
+      requestController.value?.abort();
+      if (freshnessTimer) window.clearInterval(freshnessTimer);
+      if (themeMediaQuery && themeMediaListener) themeMediaQuery.removeEventListener('change', themeMediaListener);
     });
 
     return {
-      servers,
-      selectedServerId,
-      currentData,
-      loading,
-      lastUpdateTime,
-      gpuList,
-      autoRefresh,
-      colors,
-      RefreshIcon,
-      // 夜间模式相关
-      currentTheme,
-      themeIcon,
-      themeText,
-      localeText,
-      currentLocale,
-      handleThemeChange,
-      handleLocaleChange,
-      translate,
-      // 工具函数
-      safeNumber,
-      formatBytes,
-      getTempStatus,
-      getValColorClass,
-      calcMemoryPercent,
-      refreshCurrent,
-      handleServerChange,
-      toggleAutoRefresh
+      servers, selectedServerId, selectedServer, currentData, gpuList, loading, configLoading, configError, nodeError,
+      autoRefresh, currentLocale, currentTheme, localeText, themeText, themeIcon, RefreshIcon,
+      summaryMetrics, currentSamples, networkRates, trendSeries, activeTrendSample, connectionState, relativeUpdate, lastUpdateTime,
+      translate, safeNumber, formatNumber, formatPercent, formatBytes, formatFrequency, formatPower, formatTemperature,
+      calcMemoryPercent, getTempStatus, getValColorClass, getTemperatureState,
+      updateTrendHover, clearTrendHover,
+      handleThemeChange, handleLocaleChange, handleServerChange, refreshCurrent, toggleAutoRefresh, loadConfig,
     };
-  }
+  },
 });
 
 app.use(ElementPlus);

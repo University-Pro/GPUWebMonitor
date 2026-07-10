@@ -2,56 +2,65 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <!-- <meta name="viewport" content="width=device-width, initial-scale=1.0" /> -->
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
-  <title>GPU 集群监控面板</title>
-  <!-- 网站图标 -->
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
-  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
-  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
-  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
-  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png">
-  <link rel="icon" type="image/png" sizes="512x512" href="android-chrome-512x512.png">
-
-
-  <!-- Element Plus CSS -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#f4f7fb" />
+  <title>GPU 集群监控</title>
+  <link rel="icon" type="image/x-icon" href="favicon.ico" />
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png" />
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png" />
+  <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png" />
   <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
-  <!-- 自定义样式 -->
-  <link rel="stylesheet" href="style.css?v=20260513" />
-  <!-- Vue 3 -->
+  <link rel="stylesheet" href="style.css?v=20260710" />
   <script src="https://unpkg.com/vue@3/dist/vue.global.prod.js"></script>
-  <!-- Element Plus JS -->
   <script src="https://unpkg.com/element-plus"></script>
-  <!-- Element Plus Icons -->
   <script src="https://unpkg.com/@element-plus/icons-vue"></script>
-
 </head>
 <body>
-  <div id="app" class="container" v-cloak>
-    
-    <!-- 头部栏 -->
-    <div class="header-bar">
-      <div class="header-title">
-        <el-icon :size="26" color="#409eff"><Monitor /></el-icon>
-        <div class="header-copy">
-          <span class="header-title-text">{{ translate('appTitle') }}</span>
-          <span class="header-subtitle">{{ translate('appSubtitle') }}</span>
+  <div id="app" class="app-shell" v-cloak>
+    <header class="command-bar">
+      <div class="brand-block">
+        <div class="brand-mark" aria-hidden="true"><el-icon><Monitor /></el-icon></div>
+        <div class="brand-copy">
+          <h1>{{ translate('appTitle') }}</h1>
+          <p>{{ translate('appSubtitle') }}</p>
         </div>
       </div>
-      
-      <div class="header-actions">
-        <span v-if="lastUpdateTime" class="header-update-text">
-          {{ translate('updatedAt') }} {{ lastUpdateTime }}
-        </span>
-        
-        <el-select v-model="selectedServerId" :placeholder="translate('selectServer')" class="header-select" @change="handleServerChange">
-          <el-option v-for="srv in servers" :key="srv.id" :label="srv.name" :value="srv.id"></el-option>
-        </el-select>
+
+      <div class="node-context" v-if="selectedServer">
+        <span class="eyebrow">{{ translate('node') }}</span>
+        <strong>{{ selectedServer.name }}</strong>
+      </div>
+
+      <div class="command-actions">
+        <div class="connection-pill" :class="`is-${connectionState.key}`" role="status" aria-live="polite">
+          <el-icon v-if="connectionState.icon === 'check'"><CircleCheckFilled /></el-icon>
+          <el-icon v-else-if="connectionState.icon === 'warning'"><WarningFilled /></el-icon>
+          <el-icon v-else class="is-spinning"><Clock /></el-icon>
+          <span>
+            <strong>{{ connectionState.label }}</strong>
+            <small v-if="lastUpdateTime">{{ relativeUpdate }} · {{ lastUpdateTime }}</small>
+          </span>
+        </div>
+
+        <div class="node-select-control">
+          <span class="sr-only">{{ translate('selectServer') }}</span>
+          <el-select v-model="selectedServerId" :placeholder="translate('selectServer')" @change="handleServerChange" :aria-label="translate('selectServer')">
+            <el-option v-for="server in servers" :key="server.id" :label="server.name" :value="server.id"></el-option>
+          </el-select>
+        </div>
+
+        <div class="refresh-control">
+          <span>{{ translate('autoRefresh') }}</span>
+          <el-switch v-model="autoRefresh" @change="toggleAutoRefresh" :aria-label="translate('autoRefresh')" />
+        </div>
+
+        <el-tooltip :content="translate('refresh')" placement="bottom">
+          <el-button class="refresh-button" type="primary" :icon="RefreshIcon" :loading="loading" @click="refreshCurrent" :aria-label="translate('refresh')" circle />
+        </el-tooltip>
 
         <el-dropdown trigger="click" @command="handleLocaleChange">
-          <el-button type="default" size="small" plain>
-            {{ localeText }}
-          </el-button>
+          <el-button plain :aria-label="translate('language')">{{ localeText }}</el-button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item command="zh" :disabled="currentLocale === 'zh'">中文</el-dropdown-item>
@@ -61,197 +70,168 @@
           </template>
         </el-dropdown>
 
-        <!-- 夜间模式选择器 -->
         <el-dropdown trigger="click" @command="handleThemeChange">
-          <el-button type="default" :icon="themeIcon" size="small" plain>
-            {{ themeText }}
-          </el-button>
+          <el-button plain :icon="themeIcon" :aria-label="translate('themeLabel')">{{ themeText }}</el-button>
           <template #dropdown>
             <el-dropdown-menu>
-              <el-dropdown-item command="auto" :disabled="currentTheme === 'auto'">
-                <el-icon><Sunrise /></el-icon>{{ translate('themeMenu.auto') }}
-              </el-dropdown-item>
-              <el-dropdown-item command="light" :disabled="currentTheme === 'light'">
-                <el-icon><Sunny /></el-icon>{{ translate('themeMenu.light') }}
-              </el-dropdown-item>
-              <el-dropdown-item command="dark" :disabled="currentTheme === 'dark'">
-                <el-icon><Moon /></el-icon>{{ translate('themeMenu.dark') }}
-              </el-dropdown-item>
+              <el-dropdown-item command="auto" :disabled="currentTheme === 'auto'"><el-icon><Sunrise /></el-icon>{{ translate('themeMenu.auto') }}</el-dropdown-item>
+              <el-dropdown-item command="light" :disabled="currentTheme === 'light'"><el-icon><Sunny /></el-icon>{{ translate('themeMenu.light') }}</el-dropdown-item>
+              <el-dropdown-item command="dark" :disabled="currentTheme === 'dark'"><el-icon><Moon /></el-icon>{{ translate('themeMenu.dark') }}</el-dropdown-item>
             </el-dropdown-menu>
           </template>
         </el-dropdown>
-
-        <div class="refresh-switch-wrap">
-            <span class="refresh-switch-label">{{ translate('autoRefresh') }}</span>
-            <el-switch v-model="autoRefresh" size="small" @change="toggleAutoRefresh" />
-        </div>
-        <el-button type="primary" :icon="RefreshIcon" :loading="loading && !currentData" @click="refreshCurrent" circle></el-button>
       </div>
-    </div>
-    <!-- 错误提示 -->
-    <div v-if="!loading && servers.length === 0" style="margin-bottom: 20px;">
-        <el-alert :title="translate('errors.noConfigTitle')" :description="translate('errors.noConfigDesc')" type="error" show-icon />
-    </div>
-    <!-- 主内容 -->
-    <div v-if="currentData">
-      
-      <!-- 系统概览 -->
-      <el-row :gutter="24" style="margin-bottom: 24px;">
-        <!-- CPU -->
-        <el-col :md="8" :sm="12" :xs="24" style="margin-bottom: 16px;">
-          <div class="dashboard-card">
-            <div class="metric-group">
-                <div class="metric-info">
-              <div class="metric-label">{{ translate('metrics.cpu') }}</div>
-                    <div class="metric-value-big">{{ safeNumber(currentData.system.cpu.percent).toFixed(1) }}%</div>
-                    <div class="metric-sub">
-                        {{ currentData.system.cpu.count }} 核心 / {{ (currentData.system.cpu.frequency_current/1000).toFixed(1) }} GHz
-                    </div>
-                </div>
-                <el-progress type="circle" :width="70" :stroke-width="8" :percentage="safeNumber(currentData.system.cpu.percent)" :show-text="false" :color="colors" />
-            </div>
+    </header>
+
+    <main>
+      <section v-if="configError || (!configLoading && servers.length === 0)" class="state-panel state-panel--blocking">
+        <el-icon><WarningFilled /></el-icon>
+        <div>
+          <h2>{{ configError ? translate('errors.configFailedTitle') : translate('errors.noConfigTitle') }}</h2>
+          <p>{{ configError ? translate('errors.loadServerList') : translate('errors.noConfigDesc') }}</p>
+        </div>
+        <el-button type="primary" @click="loadConfig">{{ translate('retry') }}</el-button>
+      </section>
+
+      <template v-else-if="currentData">
+        <section v-if="nodeError" class="inline-alert" role="alert">
+          <div class="inline-alert__icon"><el-icon><WarningFilled /></el-icon></div>
+          <div class="inline-alert__content">
+            <strong>{{ translate('errors.nodeFailedTitle') }}</strong>
+            <span>{{ translate('errors.nodeFailedDesc') }}</span>
           </div>
-        </el-col>
-        
-        <!-- 内存 -->
-        <el-col :md="8" :sm="12" :xs="24" style="margin-bottom: 16px;">
-          <div class="dashboard-card">
-            <div class="metric-group">
-                <div class="metric-info">
-              <div class="metric-label">{{ translate('metrics.memory') }}</div>
-                    <div class="metric-value-big">{{ safeNumber(currentData.system.memory.percent).toFixed(1) }}%</div>
-                    <div class="metric-sub">
-                        {{ formatBytes(currentData.system.memory.used) }} / {{ formatBytes(currentData.system.memory.total) }}
-                    </div>
-                </div>
-                <el-progress type="circle" :width="70" :stroke-width="8" :percentage="safeNumber(currentData.system.memory.percent)" :show-text="false" :color="colors" />
-            </div>
+          <el-button plain @click="refreshCurrent">{{ translate('retry') }}</el-button>
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="overview-title">
+          <div class="section-heading">
+            <div><span class="eyebrow">Overview</span><h2 id="overview-title">{{ translate('overview.title') }}</h2><p>{{ translate('overview.subtitle') }}</p></div>
           </div>
-        </el-col>
-        <!-- 网络与统计 -->
-        <el-col :md="8" :sm="24" :xs="24" style="margin-bottom: 16px;">
-            <div class="dashboard-card" style="display: flex; flex-direction: column; justify-content: center;">
-                <div class="network-item">
-              <span class="network-label"><el-icon style="vertical-align: middle; margin-right: 4px;"><Download /></el-icon> {{ translate('metrics.networkDown') }}</span>
-                    <span style="font-weight: 600;">{{ formatBytes(currentData.system.network.bytes_recv) }}</span>
-                </div>
-                <div class="network-item">
-              <span class="network-label"><el-icon style="vertical-align: middle; margin-right: 4px;"><Upload /></el-icon> {{ translate('metrics.networkUp') }}</span>
-                    <span style="font-weight: 600;">{{ formatBytes(currentData.system.network.bytes_sent) }}</span>
-                </div>
-                <div class="network-item" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--border-light);">
-              <span class="network-label">{{ translate('metrics.gpuOnline') }}</span>
-                    <el-tag size="small" type="success" effect="light">{{ gpuList.length }} 卡</el-tag>
-                </div>
+          <div class="kpi-grid">
+            <article v-for="metric in summaryMetrics" :key="metric.key" class="kpi-card">
+              <div class="kpi-card__top"><span class="kpi-label">{{ metric.label }}</span><span class="metric-dot" :class="`metric-dot--${metric.key}`" aria-hidden="true"></span></div>
+              <strong class="kpi-value">{{ metric.value }}</strong>
+              <div class="kpi-detail">{{ metric.detail }}</div>
+              <div v-if="metric.percent !== null" class="micro-meter" :aria-label="`${metric.label}: ${metric.value}`" role="progressbar" aria-valuemin="0" aria-valuemax="100" :aria-valuenow="Math.round(metric.percent)">
+                <span :style="{ width: `${Math.min(100, Math.max(0, metric.percent))}%` }"></span>
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section class="dashboard-section split-layout" aria-labelledby="resources-title">
+          <article class="panel resource-panel">
+            <div class="panel-heading"><div><span class="eyebrow">Telemetry</span><h2 id="resources-title">{{ translate('resources.title') }}</h2><p>{{ translate('resources.subtitle') }}</p></div><el-icon><Connection /></el-icon></div>
+
+            <div class="resource-meter">
+              <div class="resource-meter__header"><div><strong>{{ translate('resources.cpuDetail') }}</strong><span>{{ translate('resources.cores', currentData.system.cpu.count) }} · {{ formatFrequency(currentData.system.cpu.frequency_current) }}</span></div><b>{{ formatPercent(currentData.system.cpu.percent, 1) }}</b></div>
+              <el-progress :percentage="Math.round(currentData.system.cpu.percent)" :stroke-width="10" :show-text="false" />
             </div>
-        </el-col>
-      </el-row>
-      <!-- GPU 列表 -->
-      <div v-for="gpu in gpuList" :key="gpu.uuid || gpu.index" class="dashboard-card gpu-card">
-        <!-- GPU 头部 -->
-        <div class="gpu-header">
-            <div class="gpu-title-box">
-                <span class="gpu-index-badge">#{{ gpu.index }}</span>
-                <span class="gpu-name">{{ gpu.name }}</span>
+            <div class="resource-meter">
+              <div class="resource-meter__header"><div><strong>{{ translate('resources.memoryDetail') }}</strong><span>{{ formatBytes(currentData.system.memory.used) }} / {{ formatBytes(currentData.system.memory.total) }}</span></div><b>{{ formatPercent(currentData.system.memory.percent, 1) }}</b></div>
+              <el-progress :percentage="Math.round(currentData.system.memory.percent)" :stroke-width="10" :show-text="false" />
             </div>
-            <div>
-                <!-- 纯数字温度 -->
-                <el-tag :type="getTempStatus(gpu.temperature)" effect="dark" round>
-                   {{ gpu.temperature }}°C
+
+            <div class="network-grid">
+              <div class="network-stat"><el-icon><Download /></el-icon><div><span>{{ translate('resources.totalReceived') }}</span><strong>{{ formatBytes(currentData.system.network.bytes_recv) }}</strong><small>{{ translate('resources.recentRate') }} · {{ networkRates ? formatBytes(networkRates.received, true) : translate('resources.collecting') }}</small></div></div>
+              <div class="network-stat"><el-icon><Upload /></el-icon><div><span>{{ translate('resources.totalSent') }}</span><strong>{{ formatBytes(currentData.system.network.bytes_sent) }}</strong><small>{{ translate('resources.recentRate') }} · {{ networkRates ? formatBytes(networkRates.sent, true) : translate('resources.collecting') }}</small></div></div>
+            </div>
+          </article>
+
+          <article class="panel trend-panel" aria-labelledby="trend-title">
+            <div class="panel-heading"><div><span class="eyebrow">Session trend</span><h2 id="trend-title">{{ translate('trend.title') }}</h2><p>{{ translate('trend.subtitle') }}</p></div><el-icon><DataLine /></el-icon></div>
+            <div v-if="trendSeries.length" class="trend-content">
+              <div class="trend-legend" aria-label="Legend"><span v-for="series in trendSeries" :key="series.key" :class="`series-${series.key}`"><i></i>{{ series.label }}</span></div>
+              <svg class="trend-chart" viewBox="0 0 600 180" preserveAspectRatio="none" role="img" :aria-label="translate('trend.details')" @mousemove="updateTrendHover" @mouseleave="clearTrendHover" @touchstart.prevent="updateTrendHover" @touchmove.prevent="updateTrendHover" @touchend="clearTrendHover">
+                <line v-for="y in [0, 45, 90, 135, 180]" :key="y" x1="0" :y1="y" x2="600" :y2="y" class="trend-grid-line" />
+                <polyline v-for="series in trendSeries" :key="series.key" :points="series.points" :class="`trend-line series-${series.key}`" />
+                <g v-if="activeTrendSample" class="trend-hover-layer">
+                  <line :x1="activeTrendSample.x" y1="0" :x2="activeTrendSample.x" y2="180" class="trend-crosshair" />
+                  <circle v-for="value in activeTrendSample.values" :key="value.key" :cx="activeTrendSample.x" :cy="value.y" r="5" :class="`trend-point series-${value.key}`" />
+                </g>
+              </svg>
+              <div v-if="activeTrendSample" class="trend-tooltip" :class="{ 'is-right': activeTrendSample.x > 360 }" :style="{ left: activeTrendSample.position }" role="status">
+                <strong>{{ translate('trend.time') }} · {{ activeTrendSample.time }}</strong>
+                <span v-for="value in activeTrendSample.values" :key="value.key"><i :class="`series-${value.key}`"></i>{{ value.label }}<b>{{ value.value }}</b></span>
+              </div>
+              <div class="trend-scale"><span>100%</span><span>0%</span></div>
+            </div>
+            <div v-else class="trend-waiting"><el-icon><Clock /></el-icon><span>{{ translate('trend.waiting') }}</span></div>
+          </article>
+        </section>
+
+        <section class="dashboard-section" aria-labelledby="gpu-title">
+          <div class="section-heading section-heading--inline"><div><span class="eyebrow">Accelerators</span><h2 id="gpu-title">{{ translate('gpu.title') }}</h2><p>{{ translate('gpu.subtitle') }}</p></div><span class="count-badge">{{ translate('units.cards', gpuList.length) }}</span></div>
+
+          <div v-if="gpuList.length" class="gpu-list">
+            <article v-for="gpu in gpuList" :key="gpu.uuid || gpu.index" class="panel gpu-card">
+              <header class="gpu-header">
+                <div class="gpu-identity"><span class="gpu-index">GPU {{ gpu.index }}</span><div><h3>{{ gpu.name }}</h3><small>{{ gpu.uuid }}</small></div></div>
+                <el-tag :type="getTemperatureState(gpu.temperature).type" effect="light" round>
+                  <span class="status-tag-content"><el-icon v-if="getTemperatureState(gpu.temperature).type === 'success'"><CircleCheckFilled /></el-icon><el-icon v-else><WarningFilled /></el-icon>{{ getTemperatureState(gpu.temperature).label }} · {{ formatTemperature(gpu.temperature) }}</span>
                 </el-tag>
-            </div>
-        </div>
-        <!-- GPU 详情主体 -->
-        <div class="gpu-details-grid">
-            <!-- 左侧：显存与利用率 -->
-            <div class="progress-section">
-                <div>
-                    <div class="progress-label-row">
-                  <span>{{ translate('metrics.vram') }}</span>
-                        <span class="progress-val">{{ gpu.memory.used_gb.toFixed(1) }} / {{ gpu.memory.total_gb.toFixed(1) }} GB</span>
-                    </div>
-                    <el-progress 
-                        :percentage="calcMemoryPercent(gpu)" 
-                        :stroke-width="18" 
-                        :color="colors"
-                        :text-inside="true"
-                    />
-                </div>
-                <div>
-                    <div class="progress-label-row">
-                    <span>{{ translate('metrics.utilization') }}</span>
-                        <span class="progress-val">{{ gpu.utilization.gpu }}%</span>
-                    </div>
-                    <el-progress 
-                        :percentage="Math.round(gpu.utilization.gpu)" 
-                        :stroke-width="18" 
-                        status="success"
-                        :text-inside="true"
-                    />
-                </div>
-            </div>
-            <!-- 右侧：传感器数据 -->
-            <div class="sensor-grid">
-                <div class="sensor-item">
-                    <div class="sensor-value">{{ (gpu.power.usage / 1000).toFixed(0) }} W</div>
-                <div class="sensor-key">{{ translate('metrics.power') }}</div>
-                </div>
-                <div class="sensor-item">
-                    <div class="sensor-value">{{ gpu.fan_speed }}%</div>
-                <div class="sensor-key">{{ translate('metrics.fan') }}</div>
-                </div>
-                <div class="sensor-item">
-                    <div class="sensor-value" :class="getValColorClass(calcMemoryPercent(gpu))">
-                        {{ calcMemoryPercent(gpu) }}%
-                    </div>
-                <div class="sensor-key">{{ translate('metrics.memoryUsage') }}</div>
-                </div>
-            </div>
-        </div>
-        
-        <!-- 进程列表 -->
-        <div style="margin-top: 24px; border-top: 1px solid var(--border-light); padding-top: 12px;">
-            <el-collapse>
-              <el-collapse-item :title="`${translate('metrics.activeProcesses')} (${gpu.processes ? gpu.processes.length : 0})`" name="1">
-                    <el-table 
-                        :data="gpu.processes" 
-                        style="width: 100%" 
-                        size="small"
-                  :empty-text="translate('table.empty')"
-                    >
-                  <el-table-column prop="pid" :label="translate('table.pid')" width="80"></el-table-column>
-                  <el-table-column prop="username" :label="translate('table.user')" width="100"></el-table-column>
-                  <el-table-column prop="name" :label="translate('table.processName')" width="140" show-overflow-tooltip></el-table-column>
-                  <el-table-column :label="translate('table.memory')" width="100">
-                            <template #default="scope">
-                                {{ formatBytes(scope.row.gpu_memory) }}
-                            </template>
-                        </el-table-column>
-                  <el-table-column prop="command" :label="translate('table.command')" min-width="180" show-overflow-tooltip>
-                            <template #default="scope">
-                                <span style="font-family: monospace; color: var(--text-secondary);">{{ scope.row.command }}</span>
-                            </template>
-                        </el-table-column>
-                    </el-table>
-                </el-collapse-item>
-            </el-collapse>
-        </div>
-      </div>
-    </div>
-    <!-- 初始加载状态 -->
-    <div v-else style="padding: 40px 0;">
-        <el-skeleton :rows="3" animated style="margin-bottom: 20px;" />
-        <el-skeleton :rows="6" animated />
-    </div>
-    <!-- 底部署名 -->
-    <div class="footer-copyright">
-      <p>{{ translate('footer.line1') }}</p>
-      <p>{{ translate('footer.line2') }}</p>
-    </div>
-  </div>
+              </header>
 
+              <div class="gpu-body">
+                <div class="gpu-workload">
+                  <div class="workload-item">
+                    <div class="workload-header"><span>{{ translate('gpu.utilization') }}</span><strong>{{ formatPercent(gpu.utilization.gpu) }}</strong></div>
+                    <el-progress :percentage="Math.round(gpu.utilization.gpu)" :stroke-width="14" :show-text="false" />
+                  </div>
+                  <div class="workload-item">
+                    <div class="workload-header"><span>{{ translate('gpu.vram') }}</span><strong>{{ formatBytes(gpu.memory.used) }} / {{ formatBytes(gpu.memory.total) }}</strong></div>
+                    <el-progress :percentage="gpu.memory.percent" :stroke-width="14" :show-text="false" />
+                  </div>
+                </div>
+
+                <div class="sensor-grid">
+                  <div class="sensor-stat"><span>{{ translate('gpu.temperature') }}</span><strong>{{ formatTemperature(gpu.temperature) }}</strong></div>
+                  <div class="sensor-stat"><span>{{ translate('gpu.power') }}</span><strong>{{ formatPower(gpu.power.usage) }}</strong><small>{{ translate('gpu.powerLimit') }} · {{ formatPower(gpu.power.limit) }}</small></div>
+                  <div class="sensor-stat"><span>{{ translate('gpu.fan') }}</span><strong>{{ formatPercent(gpu.fan_speed) }}</strong></div>
+                  <div class="sensor-stat"><span>{{ translate('gpu.memoryUtil') }}</span><strong>{{ formatPercent(gpu.utilization.memory) }}</strong></div>
+                </div>
+              </div>
+
+              <el-collapse class="process-collapse">
+                <el-collapse-item :name="`gpu-${gpu.index}`">
+                  <template #title><span class="process-title"><strong>{{ translate('process.title') }}</strong><span>{{ translate('process.count', gpu.process_count) }}</span></span></template>
+                  <div class="desktop-process-table">
+                    <el-table :data="gpu.processes" size="small" :empty-text="translate('process.empty')">
+                      <el-table-column prop="pid" :label="translate('process.pid')" width="86"></el-table-column>
+                      <el-table-column prop="username" :label="translate('process.user')" width="120" show-overflow-tooltip></el-table-column>
+                      <el-table-column :label="translate('process.memory')" width="120"><template #default="scope">{{ formatBytes(scope.row.gpu_memory) }}</template></el-table-column>
+                      <el-table-column prop="command" :label="translate('process.command')" min-width="280" show-overflow-tooltip><template #default="scope"><code>{{ scope.row.command }}</code></template></el-table-column>
+                    </el-table>
+                  </div>
+                  <div class="mobile-process-list">
+                    <div v-if="!gpu.processes.length" class="empty-inline">{{ translate('process.empty') }}</div>
+                    <article v-for="process in gpu.processes" :key="`${gpu.uuid}-${process.pid}`" class="process-card">
+                      <div class="process-card__head"><strong>PID {{ process.pid }}</strong><span>{{ formatBytes(process.gpu_memory) }}</span></div>
+                      <dl><div><dt>{{ translate('process.user') }}</dt><dd>{{ process.username }}</dd></div><div class="process-command"><dt>{{ translate('process.command') }}</dt><dd><code>{{ process.command }}</code></dd></div></dl>
+                    </article>
+                  </div>
+                </el-collapse-item>
+              </el-collapse>
+            </article>
+          </div>
+
+          <div v-else class="state-panel">
+            <el-icon><Monitor /></el-icon><div><h3>{{ translate('gpu.emptyTitle') }}</h3><p>{{ translate('gpu.emptyDesc') }}</p></div>
+          </div>
+        </section>
+      </template>
+
+      <section v-else-if="loading || configLoading" class="loading-layout" aria-label="Loading">
+        <el-skeleton animated><template #template><div class="skeleton-grid"><el-skeleton-item v-for="n in 6" :key="n" variant="rect" class="skeleton-card" /></div><el-skeleton-item variant="rect" class="skeleton-panel" /></template></el-skeleton>
+      </section>
+
+      <section v-else-if="nodeError" class="state-panel state-panel--blocking">
+        <el-icon><WarningFilled /></el-icon><div><h2>{{ translate('errors.nodeFailedTitle') }}</h2><p>{{ translate('errors.nodeFailedDesc') }}</p></div><el-button type="primary" @click="refreshCurrent">{{ translate('retry') }}</el-button>
+      </section>
+    </main>
+
+    <footer class="footer-copyright"><p>{{ translate('footer.line1') }}</p><p>{{ translate('footer.line2') }}</p></footer>
   </div>
-  <!-- 引入业务逻辑 -->
-  <script src="app.js?v=20260513"></script>
+  <script src="app.js?v=20260710"></script>
 </body>
 </html>
