@@ -301,8 +301,11 @@ code { color: var(--ink-secondary); font-family: "SFMono-Regular", Consolas, mon
   .refresh-button { grid-column: 3; grid-row: 2; }
   .network-grid { grid-template-columns: 1fr; }
   .gpu-header { align-items: flex-start; flex-direction: column; }
-  .gpu-identity small { max-width: 76vw; }
-  .gpu-body { padding: 17px; }
+  .gpu-header-left { flex-wrap: wrap; }
+  .gpu-body { grid-template-columns: 1fr; padding: 17px; }
+  .panel-heading { flex-direction: column; align-items: flex-start; gap: 12px; }
+  .trend-heading-right { width: 100%; justify-content: flex-start; }
+  .trend-range-bar { flex-wrap: wrap; }
   .sensor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .desktop-process-table { display: none; }
   .mobile-process-list { display: grid; gap: 10px; }
@@ -331,6 +334,7 @@ code { color: var(--ink-secondary); font-family: "SFMono-Regular", Consolas, mon
   .kpi-grid { grid-template-columns: 1fr; }
   .kpi-card { min-height: 128px; }
   .sensor-grid { grid-template-columns: 1fr 1fr; }
+  .eyebrow { display: none; }
   .resource-meter__header { align-items: flex-start; }
   .resource-meter__header b { flex: 0 0 auto; }
   .trend-content { padding-left: 34px; }

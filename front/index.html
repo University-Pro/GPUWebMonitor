@@ -124,7 +124,7 @@
           </article>
 
           <article class="panel trend-panel" aria-labelledby="trend-title">
-            <div class="panel-heading"><div><span class="eyebrow">Session trend</span><h2 id="trend-title">{{ translate('trend.title') }}</h2><p>{{ trendDisplayRange }}</p></div><div class="trend-heading-right"><div class="trend-range-bar"><el-button-group><el-button v-for="(cfg, key) in trendRanges" :key="key" :type="trendRange === key ? 'primary' : 'default'" size="small" @click="setTrendRange(key)">{{ translate(`trend.ranges.${key}`) }}</el-button></el-button-group></div><el-icon><DataLine /></el-icon></div></div>
+            <div class="panel-heading"><div><span class="eyebrow">Session trend</span><h2 id="trend-title">{{ translate('trend.title') }}</h2></div><div class="trend-heading-right"><div class="trend-range-bar"><el-button-group><el-button v-for="(cfg, key) in trendRanges" :key="key" :type="trendRange === key ? 'primary' : 'default'" size="small" @click="setTrendRange(key)">{{ translate(`trend.ranges.${key}`) }}</el-button></el-button-group></div><el-icon><DataLine /></el-icon></div></div>
             <div v-if="historyLoading" class="trend-waiting"><el-icon class="is-spinning"><Clock /></el-icon><span>{{ translate('trend.loadingHistory') }}</span></div>
             <div v-else-if="trendSeries.length" class="trend-content">
               <div class="trend-legend" aria-label="Legend"><span v-for="series in trendSeries" :key="series.key" :class="`series-${series.key}`"><i></i>{{ series.label }}</span></div>
