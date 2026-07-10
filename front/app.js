@@ -32,14 +32,13 @@ const app = createApp({
         relative: { now: '刚刚', seconds: (n) => `${n} 秒前`, minutes: (n) => `${n} 分钟前` },
         theme: { auto: '自动', light: '白天', dark: '夜间' },
         themeMenu: { auto: '跟随系统', light: '白天模式', dark: '夜间模式' },
-        overview: { title: '节点概览', subtitle: '关键资源与工作负载概况', gpuCount: '在线 GPU', avgGpu: '平均 GPU 利用率', totalVram: '总显存占用', processes: '活跃进程', cpu: 'CPU 使用率', memory: '内存使用率' },
         resources: { title: '系统资源', subtitle: '当前负载与累计网络流量', cpuDetail: 'CPU 详情', memoryDetail: '内存详情', totalReceived: '累计接收', totalSent: '累计发送', recentRate: '近期速率', collecting: '正在收集样本', cores: (n) => `${n} 核`, frequency: '当前频率' },
         trend: { title: '近期利用率', subtitle: '本次浏览会话 · 最近 20 个采样点', cpu: 'CPU', memory: '内存', gpu: 'GPU 平均', waiting: '至少需要 2 个样本，趋势将在下次刷新后显示', details: '查看采样数据', time: '时间' },
         gpu: { title: 'GPU 设备', subtitle: '逐卡负载、热状态与进程', emptyTitle: '当前节点未检测到 GPU', emptyDesc: '系统资源仍可正常查看，请确认 NVIDIA 驱动与 NVML 状态。', utilization: '核心利用率', vram: '显存占用', temperature: '温度', power: '实时功耗', powerLimit: '功耗上限', fan: '风扇转速', memoryUtil: '显存控制器', normal: '温度正常', warm: '温度偏高', critical: '温度危险', unknown: '温度未知' },
         process: { title: '计算进程', count: (n) => `${n} 个进程`, pid: 'PID', user: '用户', name: '进程名', memory: '显存占用', command: '命令', empty: '该 GPU 暂无活跃计算进程' },
         units: { cards: (n) => `${n} 张`, unavailable: '不可用' },
         errors: { noConfigTitle: '未配置计算节点', noConfigDesc: '未找到服务器配置，请检查 front/config.json。', configFailedTitle: '无法加载节点配置', loadServerList: '无法加载服务器列表，请确认 Dashboard 服务正在运行。', nodeFailedTitle: '无法获取当前节点数据', nodeFailedDesc: '已保留最近一次有效数据。请检查节点网络或 Agent 服务后重试。', fetchFailed: (m) => `获取数据失败：${m}` },
-        footer: { line1: '© 2026 GPU 集群监控面板 · Shushu Internet Center, Anhui University', line2: '为 AI 研究与高性能计算而设计' },
+        footer: { line1: '© 2026 GPU 集群监控面板 · Shushu Internet Center, Anhui University'},
       },
       en: {
         appTitle: 'GPU Cluster Monitor', appSubtitle: 'Live node resources, GPU workloads, and compute processes',
@@ -49,7 +48,6 @@ const app = createApp({
         relative: { now: 'just now', seconds: (n) => `${n}s ago`, minutes: (n) => `${n}m ago` },
         theme: { auto: 'Auto', light: 'Light', dark: 'Dark' },
         themeMenu: { auto: 'Follow system', light: 'Light mode', dark: 'Dark mode' },
-        overview: { title: 'Node overview', subtitle: 'Key resources and workload at a glance', gpuCount: 'Online GPUs', avgGpu: 'Average GPU utilization', totalVram: 'Total VRAM used', processes: 'Active processes', cpu: 'CPU utilization', memory: 'Memory utilization' },
         resources: { title: 'System resources', subtitle: 'Current load and cumulative network traffic', cpuDetail: 'CPU details', memoryDetail: 'Memory details', totalReceived: 'Total received', totalSent: 'Total sent', recentRate: 'Recent rate', collecting: 'Collecting samples', cores: (n) => `${n} cores`, frequency: 'Current frequency' },
         trend: { title: 'Recent utilization', subtitle: 'This browser session · latest 20 samples', cpu: 'CPU', memory: 'Memory', gpu: 'GPU average', waiting: 'At least 2 samples are needed. The trend will appear after the next refresh.', details: 'View sample data', time: 'Time' },
         gpu: { title: 'GPU devices', subtitle: 'Per-device workload, thermal state, and processes', emptyTitle: 'No GPU detected on this node', emptyDesc: 'System resources remain available. Check the NVIDIA driver and NVML status.', utilization: 'Core utilization', vram: 'VRAM used', temperature: 'Temperature', power: 'Live power', powerLimit: 'Power limit', fan: 'Fan speed', memoryUtil: 'Memory controller', normal: 'Temperature normal', warm: 'Temperature high', critical: 'Temperature critical', unknown: 'Temperature unavailable' },
@@ -66,14 +64,13 @@ const app = createApp({
         relative: { now: 'たった今', seconds: (n) => `${n} 秒前`, minutes: (n) => `${n} 分前` },
         theme: { auto: '自動', light: 'ライト', dark: 'ダーク' },
         themeMenu: { auto: 'システムに従う', light: 'ライトモード', dark: 'ダークモード' },
-        overview: { title: 'ノード概要', subtitle: '主要リソースとワークロード', gpuCount: 'オンライン GPU', avgGpu: '平均 GPU 使用率', totalVram: '総 VRAM 使用量', processes: 'アクティブプロセス', cpu: 'CPU 使用率', memory: 'メモリ使用率' },
         resources: { title: 'システムリソース', subtitle: '現在の負荷と累積ネットワーク通信量', cpuDetail: 'CPU 詳細', memoryDetail: 'メモリ詳細', totalReceived: '累積受信', totalSent: '累積送信', recentRate: '直近の速度', collecting: 'サンプル収集中', cores: (n) => `${n} コア`, frequency: '現在の周波数' },
         trend: { title: '最近の使用率', subtitle: 'このブラウザーセッション · 最新 20 サンプル', cpu: 'CPU', memory: 'メモリ', gpu: 'GPU 平均', waiting: '2 件以上のサンプルが必要です。次回更新後に表示されます。', details: 'サンプルデータを表示', time: '時刻' },
         gpu: { title: 'GPU デバイス', subtitle: 'デバイス別の負荷、温度、プロセス', emptyTitle: 'このノードで GPU が検出されません', emptyDesc: 'システムリソースは表示できます。NVIDIA ドライバーと NVML を確認してください。', utilization: 'コア使用率', vram: 'VRAM 使用量', temperature: '温度', power: '現在の電力', powerLimit: '電力上限', fan: 'ファン速度', memoryUtil: 'メモリコントローラー', normal: '温度正常', warm: '温度高め', critical: '温度危険', unknown: '温度不明' },
         process: { title: '計算プロセス', count: (n) => `${n} プロセス`, pid: 'PID', user: 'ユーザー', name: 'プロセス', memory: 'GPU メモリ', command: 'コマンド', empty: 'この GPU にアクティブな計算プロセスはありません' },
         units: { cards: (n) => `${n} 枚`, unavailable: '利用不可' },
         errors: { noConfigTitle: '計算ノードが未設定です', noConfigDesc: 'サーバー設定がありません。front/config.json を確認してください。', configFailedTitle: 'ノード設定を読み込めません', loadServerList: 'サーバー一覧を読み込めません。Dashboard の起動状態を確認してください。', nodeFailedTitle: 'ノードデータを取得できません', nodeFailedDesc: '直近の有効データを保持しています。ネットワークまたは Agent を確認して再試行してください。', fetchFailed: (m) => `データ取得失敗：${m}` },
-        footer: { line1: '© 2026 GPU クラスターモニター · 安徽大学 Shushu Internet Center', line2: 'AI 研究とハイパフォーマンスコンピューティングのために設計' },
+        footer: { line1: '© 2026 GPU クラスターモニター · 安徽大学 Shushu Internet Center'},
       },
     };
 
@@ -192,20 +189,6 @@ const app = createApp({
         timestamp: raw.timestamp || new Date().toISOString(),
       };
     };
-
-    const summaryMetrics = computed(() => {
-      const data = currentData.value;
-      if (!data) return [];
-      const summary = data.gpu.summary;
-      return [
-        { key: 'gpus', label: translate('overview.gpuCount'), value: translate('units.cards', gpuList.value.length), detail: selectedServer.value?.name || '—', percent: null },
-        { key: 'gpu', label: translate('overview.avgGpu'), value: formatPercent(summary.avg_gpu_utilization), detail: translate('gpu.utilization'), percent: summary.avg_gpu_utilization },
-        { key: 'vram', label: translate('overview.totalVram'), value: formatPercent(summary.total_memory_total ? summary.total_memory_used / summary.total_memory_total * 100 : 0), detail: `${formatBytes(summary.total_memory_used)} / ${formatBytes(summary.total_memory_total)}`, percent: summary.total_memory_total ? summary.total_memory_used / summary.total_memory_total * 100 : 0 },
-        { key: 'processes', label: translate('overview.processes'), value: formatNumber(summary.total_processes), detail: translate('process.count', summary.total_processes), percent: null },
-        { key: 'cpu', label: translate('overview.cpu'), value: formatPercent(data.system.cpu.percent, 1), detail: translate('resources.cores', data.system.cpu.count), percent: data.system.cpu.percent },
-        { key: 'memory', label: translate('overview.memory'), value: formatPercent(data.system.memory.percent, 1), detail: `${formatBytes(data.system.memory.used)} / ${formatBytes(data.system.memory.total)}`, percent: data.system.memory.percent },
-      ];
-    });
 
     const currentSamples = computed(() => samplesByServer.value[selectedServerId.value] || []);
     const networkRates = computed(() => {
@@ -414,7 +397,7 @@ const app = createApp({
     return {
       servers, selectedServerId, selectedServer, currentData, gpuList, loading, configLoading, configError, nodeError,
       autoRefresh, currentLocale, currentTheme, localeText, themeText, themeIcon, RefreshIcon,
-      summaryMetrics, currentSamples, networkRates, trendSeries, activeTrendSample, connectionState, relativeUpdate, lastUpdateTime,
+      currentSamples, networkRates, trendSeries, activeTrendSample, connectionState, relativeUpdate, lastUpdateTime,
       translate, safeNumber, formatNumber, formatPercent, formatBytes, formatFrequency, formatPower, formatTemperature,
       calcMemoryPercent, getTempStatus, getValColorClass, getTemperatureState,
       updateTrendHover, clearTrendHover,
