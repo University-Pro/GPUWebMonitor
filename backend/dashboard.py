@@ -84,14 +84,19 @@ def proxy_request():
         return jsonify({"code": 500, "msg": "该服务器配置缺少 URL"}), 500
 
     # 拼接目标 Agent 的 API 地址
-    target_api = f"{base_url}/api/status"
-    
+    use_history = request.args.get('history') == '1'
+    if use_history:
+        limit = request.args.get('limit', '100')
+        target_api = f"{base_url}/api/history?limit={limit}"
+    else:
+        target_api = f"{base_url}/api/status"
+
     try:
         # 替前端发起请求，设置超时时间防止后端卡死
         # verify=False 是为了防止目标如果是 https 自签名证书报错
         print(f"Proxying request to: {target_api}")
-        resp = requests.get(target_api, timeout=5, verify=False)
-        
+        resp = requests.get(target_api, timeout=10, verify=False)
+
         # 返回数据
         return jsonify(resp.json()), resp.status_code
 

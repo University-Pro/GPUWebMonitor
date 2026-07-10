@@ -109,11 +109,11 @@
             <div class="panel-heading"><div><span class="eyebrow">Telemetry</span><h2 id="resources-title">{{ translate('resources.title') }}</h2><p>{{ translate('resources.subtitle') }}</p></div><el-icon><Connection /></el-icon></div>
 
             <div class="resource-meter">
-              <div class="resource-meter__header"><div><strong>{{ translate('resources.cpuDetail') }}</strong><span>{{ translate('resources.cores', currentData.system.cpu.count) }} · {{ formatFrequency(currentData.system.cpu.frequency_current) }}</span></div><b>{{ formatPercent(currentData.system.cpu.percent, 1) }}</b></div>
+              <div class="resource-meter__header"><div><strong>{{ translate('resources.cpu') }}</strong><span>{{ formatFrequency(currentData.system.cpu.frequency_current) }}</span></div><b>{{ formatPercent(currentData.system.cpu.percent, 1) }}</b></div>
               <el-progress :percentage="Math.round(currentData.system.cpu.percent)" :stroke-width="10" :show-text="false" />
             </div>
             <div class="resource-meter">
-              <div class="resource-meter__header"><div><strong>{{ translate('resources.memoryDetail') }}</strong><span>{{ formatBytes(currentData.system.memory.used) }} / {{ formatBytes(currentData.system.memory.total) }}</span></div><b>{{ formatPercent(currentData.system.memory.percent, 1) }}</b></div>
+              <div class="resource-meter__header"><div><strong>{{ translate('resources.memory') }}</strong><span>{{ formatBytes(currentData.system.memory.used) }} / {{ formatBytes(currentData.system.memory.total) }}</span></div><b>{{ formatPercent(currentData.system.memory.percent, 1) }}</b></div>
               <el-progress :percentage="Math.round(currentData.system.memory.percent)" :stroke-width="10" :show-text="false" />
             </div>
 
@@ -124,8 +124,9 @@
           </article>
 
           <article class="panel trend-panel" aria-labelledby="trend-title">
-            <div class="panel-heading"><div><span class="eyebrow">Session trend</span><h2 id="trend-title">{{ translate('trend.title') }}</h2><p>{{ translate('trend.subtitle') }}</p></div><el-icon><DataLine /></el-icon></div>
-            <div v-if="trendSeries.length" class="trend-content">
+            <div class="panel-heading"><div><span class="eyebrow">Session trend</span><h2 id="trend-title">{{ translate('trend.title') }}</h2><p>{{ trendDisplayRange }}</p></div><div class="trend-heading-right"><div class="trend-range-bar"><el-button-group><el-button v-for="(cfg, key) in trendRanges" :key="key" :type="trendRange === key ? 'primary' : 'default'" size="small" @click="setTrendRange(key)">{{ translate(`trend.ranges.${key}`) }}</el-button></el-button-group></div><el-icon><DataLine /></el-icon></div></div>
+            <div v-if="historyLoading" class="trend-waiting"><el-icon class="is-spinning"><Clock /></el-icon><span>{{ translate('trend.loadingHistory') }}</span></div>
+            <div v-else-if="trendSeries.length" class="trend-content">
               <div class="trend-legend" aria-label="Legend"><span v-for="series in trendSeries" :key="series.key" :class="`series-${series.key}`"><i></i>{{ series.label }}</span></div>
               <svg class="trend-chart" viewBox="0 0 600 180" preserveAspectRatio="none" role="img" :aria-label="translate('trend.details')" @mousemove="updateTrendHover" @mouseleave="clearTrendHover" @touchstart.prevent="updateTrendHover" @touchmove.prevent="updateTrendHover" @touchend="clearTrendHover">
                 <line v-for="y in [0, 45, 90, 135, 180]" :key="y" x1="0" :y1="y" x2="600" :y2="y" class="trend-grid-line" />
@@ -151,10 +152,8 @@
           <div v-if="gpuList.length" class="gpu-list">
             <article v-for="gpu in gpuList" :key="gpu.uuid || gpu.index" class="panel gpu-card">
               <header class="gpu-header">
-                <div class="gpu-identity"><span class="gpu-index">GPU {{ gpu.index }}</span><div><h3>{{ gpu.name }}</h3><small>{{ gpu.uuid }}</small></div></div>
-                <el-tag :type="getTemperatureState(gpu.temperature).type" effect="light" round>
-                  <span class="status-tag-content"><el-icon v-if="getTemperatureState(gpu.temperature).type === 'success'"><CircleCheckFilled /></el-icon><el-icon v-else><WarningFilled /></el-icon>{{ getTemperatureState(gpu.temperature).label }} · {{ formatTemperature(gpu.temperature) }}</span>
-                </el-tag>
+                <div class="gpu-header-left"><span class="gpu-index">GPU {{ gpu.index }}</span><h3>{{ gpu.name }}</h3></div>
+                <el-tag :type="getTemperatureState(gpu.temperature).type" effect="light" round><span class="status-tag-content">{{ formatTemperature(gpu.temperature) }}</span></el-tag>
               </header>
 
               <div class="gpu-body">
@@ -170,8 +169,8 @@
                 </div>
 
                 <div class="sensor-grid">
-                  <div class="sensor-stat"><span>{{ translate('gpu.temperature') }}</span><strong>{{ formatTemperature(gpu.temperature) }}</strong></div>
-                  <div class="sensor-stat"><span>{{ translate('gpu.power') }}</span><strong>{{ formatPower(gpu.power.usage) }}</strong><small>{{ translate('gpu.powerLimit') }} · {{ formatPower(gpu.power.limit) }}</small></div>
+                  <div class="sensor-stat"><span>{{ translate('gpu.temperature') }}</span><strong :class="'text-' + getTempStatus(gpu.temperature).key">{{ formatTemperature(gpu.temperature) }}</strong></div>
+                  <div class="sensor-stat"><span>{{ translate('gpu.power') }}</span><strong>{{ formatPower(gpu.power.usage) }}</strong></div>
                   <div class="sensor-stat"><span>{{ translate('gpu.fan') }}</span><strong>{{ formatPercent(gpu.fan_speed) }}</strong></div>
                   <div class="sensor-stat"><span>{{ translate('gpu.memoryUtil') }}</span><strong>{{ formatPercent(gpu.utilization.memory) }}</strong></div>
                 </div>
@@ -215,7 +214,7 @@
       </section>
     </main>
 
-    <footer class="footer-copyright"><p>{{ translate('footer.line1') }}</p><p>{{ translate('footer.line2') }}</p></footer>
+    <footer class="footer-copyright"><p>{{ translate('footer.line1') }}</p></footer>
   </div>
   <script src="app.js?v=20260710"></script>
 </body>
