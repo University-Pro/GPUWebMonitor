@@ -7,23 +7,27 @@
 [![Vue](https://img.shields.io/badge/Vue-3-4FC08D.svg)](https://vuejs.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.x-000000.svg)](https://flask.palletsprojects.com/)
 
-**GPUWebMonitor** 是一个轻量级 GPU 服务器监控系统，用于集中查看多台 GPU 服务器的实时状态、系统资源和 GPU 进程信息。
+**GPUWebMonitor** 是一个轻量级 GPU 服务器集群监控系统，可通过一个面板集中查看多台 GPU 服务器的实时状态、系统资源和 GPU 进程信息。
 
-> 项目仍在开发中，建议在可信内网或受控测试环境中使用，暂不建议直接用于生产环境。
+> 本项目仍在开发中，建议在可信内网或受控测试环境中使用，暂不建议直接用于生产环境。
 
 ![GPUWebMonitor 预览](pictures/readme1.png)
 
 ## 功能特性
 
-- **多服务器集中监控**：通过 Dashboard 统一查看多台 Agent 节点状态。
-- **实时状态刷新**：前端支持手动刷新和自动刷新。
-- **GPU 指标展示**：显示利用率、显存、温度、功耗、风扇转速等信息。
-- **进程级监控**：展示占用 GPU 的进程 PID、用户、进程名、显存占用和命令行。
-- **系统资源监控**：展示 CPU、内存和网络收发数据。
-- **历史数据记录**：Agent 默认每 30 秒写入一次 SQLite 历史数据，并保留 30 天。
-- **静态前端部署简单**：Dashboard 服务会直接托管 `front/` 目录下的前端页面和静态资源。
+- **多节点集中监控**：通过 Dashboard 统一查看所有 Agent 节点
+- **实时刷新**：支持手动刷新和 3 秒间隔自动刷新
+- **GPU 监控**：核心利用率、显存占用、温度、功耗、风扇转速、显存控制器利用率
+- **进程监控**：每个 GPU 的计算进程 PID、用户、显存占用、命令行
+- **系统资源**：CPU 使用率与频率、内存使用量、网络累计收发与实时速率
+- **利用率趋势图**：CPU / 内存 / GPU 平均利用率的 SVG 折线图，支持实时模式和历史模式（10 分钟、30 分钟、1 小时、6 小时、12 小时）
+- **历史数据记录**：Agent 每 30 秒写入 SQLite，默认保留 30 天
+- **三语支持**：中文、English、日本語，自动检测浏览器语言
+- **主题切换**：自动 / 浅色 / 深色三种模式，跟随系统偏好
+- **响应式设计**：适配桌面、平板和手机，移动端自动切换布局
+- **本地化部署**：前端资源全部本地加载，无外部 CDN 依赖
 
-## 系统架构
+## 架构
 
 ```text
 浏览器
@@ -32,11 +36,11 @@
   v
 Dashboard 服务 backend/dashboard.py
   |
-  | 读取 front/config.json，代理请求到对应 Agent
+  | 读取 front/config.json，将请求代理到目标 Agent
   v
 Agent 服务 backend/app.py
   |
-  | 调用 nvitop / NVML / psutil
+  | 使用 nvitop / NVML / psutil 采集数据
   v
 GPU 与系统状态
 ```
@@ -45,15 +49,15 @@ GPU 与系统状态
 
 | 服务 | 文件 | 默认端口 | 说明 |
 | --- | --- | ---: | --- |
-| Agent | `backend/app.py` | `15896` | 部署在每台被监控 GPU 服务器上 |
-| Dashboard | `backend/dashboard.py` | `28456` | 部署在监控入口服务器上，也可以和某台 Agent 共用一台机器 |
+| Agent | `backend/app.py` | `15896` | 运行在每台被监控的 GPU 服务器上 |
+| Dashboard | `backend/dashboard.py` | `28456` | 监控入口，也可与 Agent 运行在同一台机器 |
 
 ## 环境要求
 
 - Python 3.12+
 - NVIDIA 驱动和可用的 NVML 环境
-- 被监控节点建议安装并可正常使用 `nvidia-smi`
-- Linux 环境推荐使用 systemd 托管服务
+- 被监控节点需能正常运行 `nvidia-smi`
+- Linux 下建议使用 systemd 管理服务
 
 ## 快速开始
 
@@ -66,7 +70,7 @@ cd GPUWebMonitor
 
 ### 2. 创建 Python 环境
 
-推荐为项目创建独立 Python 环境，避免依赖和系统环境混在一起。下面任选一种方式即可。
+建议创建独立的 Python 环境，可选择 `venv` 或 `conda`。
 
 使用 `venv`：
 
@@ -82,23 +86,18 @@ conda create -n gpuwebmonitor python=3.12
 conda activate gpuwebmonitor
 ```
 
-激活环境后，可以查看当前正在使用的 Python 路径：
+激活环境后，确认当前使用的 Python 路径：
 
 ```bash
-where python
+where python    # Windows
+which python    # Linux / macOS
 ```
 
-在 Linux/macOS 上也可以使用：
-
-```bash
-which python
-```
-
-后续配置 systemd 时，建议把这里查到的 Python 绝对路径写入 `ExecStart`。
+后续配置 systemd 时需要使用该绝对路径。
 
 ### 3. 安装后端依赖
 
-在 Dashboard 服务器和每台 Agent 服务器上安装依赖：
+在 Dashboard 服务器和每台 Agent 服务器上安装：
 
 ```bash
 cd backend
@@ -107,43 +106,41 @@ pip install -r requirements.txt
 
 ### 4. 配置服务器列表
 
-编辑 `front/config.json`，把每台 Agent 的地址写入 `servers`：
+编辑 `front/config.json`，将各 Agent 添加到 `servers` 数组：
 
 ```json
 {
   "servers": [
     {
       "id": "server1",
-      "name": "2080Ti 服务器",
-      "url": "http://192.168.30.246:15896"
+      "name": "5090D 服务器",
+      "url": "http://192.168.30.107:15896"
     },
     {
       "id": "server2",
-      "name": "4090D 服务器",
-      "url": "http://192.168.30.223:15896"
+      "name": "4090 服务器",
+      "url": "http://192.168.30.16:15896"
     }
   ]
 }
 ```
 
-字段说明：
-
 | 字段 | 说明 |
 | --- | --- |
-| `id` | 节点唯一标识，建议使用英文、数字或短横线 |
-| `name` | 前端展示名称 |
-| `url` | Agent 服务地址，默认端口为 `15896` |
+| `id` | 节点唯一标识，建议使用英文字母、数字和连字符 |
+| `name` | 前端显示名称 |
+| `url` | Agent 服务地址，默认端口 `15896` |
 
 ### 5. 启动 Agent
 
-在每台被监控 GPU 服务器上执行：
+在每台被监控的 GPU 服务器上运行：
 
 ```bash
 cd backend
 python app.py
 ```
 
-启动后可通过下面的接口检查 Agent 是否正常：
+验证 Agent 是否正常：
 
 ```bash
 curl http://127.0.0.1:15896/
@@ -152,37 +149,30 @@ curl http://127.0.0.1:15896/api/status
 
 ### 6. 启动 Dashboard
 
-在监控入口服务器上执行：
+在监控入口服务器上运行：
 
 ```bash
 cd backend
 python dashboard.py
 ```
 
-浏览器访问：
+浏览器打开：
 
 ```text
 http://<dashboard-host>:28456
 ```
 
-如果 Dashboard 和浏览器在同一台机器上，可以访问：
+本机访问可使用：
 
 ```text
 http://127.0.0.1:28456
 ```
 
-## systemd 部署示例
+## systemd 部署
 
 ### Agent 服务
 
-先确认当前环境的 Python 解释器路径：
-
-```bash
-where python
-# Linux/macOS 也可使用：which python
-```
-
-创建 `/etc/systemd/system/gpu-monitor-agent.service`，并将 `ExecStart` 中的 `/path/to/python` 替换为上面查到的绝对路径：
+确认 Python 路径后，创建 `/etc/systemd/system/gpu-monitor-agent.service`：
 
 ```ini
 [Unit]
@@ -202,8 +192,6 @@ WantedBy=multi-user.target
 ```
 
 ### Dashboard 服务
-
-同样将 `ExecStart` 中的 `/path/to/python` 替换为当前环境的 Python 绝对路径。
 
 创建 `/etc/systemd/system/gpu-monitor-dashboard.service`：
 
@@ -232,7 +220,7 @@ sudo systemctl enable --now gpu-monitor-agent
 sudo systemctl enable --now gpu-monitor-dashboard
 ```
 
-查看运行状态和日志：
+查看状态和日志：
 
 ```bash
 systemctl status gpu-monitor-agent
@@ -245,26 +233,20 @@ journalctl -u gpu-monitor-dashboard -f
 
 ### Agent 配置
 
-Agent 的主要配置位于 `backend/app.py` 顶部：
+主要配置项位于 `backend/app.py` 顶部：
 
-| 配置 | 默认值 | 说明 |
+| 配置项 | 默认值 | 说明 |
 | --- | ---: | --- |
 | `PORT` | `15896` | Agent 监听端口 |
-| `RECORD_INTERVAL` | `30` | 历史数据采集间隔，单位秒 |
+| `RECORD_INTERVAL` | `30` | 历史数据采集间隔（秒） |
 | `KEEP_HISTORY_DAYS` | `30` | SQLite 历史数据保留天数 |
 | `DB_FILE` | `backend/monitor_data.db` | 历史数据文件路径 |
 
 ### Dashboard 配置
 
-Dashboard 会读取：
+Dashboard 读取 `front/config.json` 获取服务器列表，通过 `/api/proxy?id=<server_id>` 将请求转发到目标 Agent。
 
-```text
-front/config.json
-```
-
-并通过 `/api/proxy?id=<server_id>` 将前端请求转发到对应 Agent 的 `/api/status` 接口。
-
-## API 接口
+## API
 
 ### Agent
 
@@ -272,7 +254,7 @@ front/config.json
 | --- | --- | --- |
 | `GET` | `/` | 健康检查 |
 | `GET` | `/api/status` | 获取当前 GPU 和系统状态 |
-| `GET` | `/api/history?limit=100` | 获取历史监控数据，最大 `limit` 为 1000 |
+| `GET` | `/api/history?limit=100` | 获取历史监控数据，`limit` 最大值为 1000 |
 
 ### Dashboard
 
@@ -280,15 +262,15 @@ front/config.json
 | --- | --- | --- |
 | `GET` | `/` | 前端页面 |
 | `GET` | `/api/config` | 获取服务器配置 |
-| `GET` | `/api/proxy?id=<server_id>` | 代理请求到指定 Agent |
+| `GET` | `/api/proxy?id=<server_id>` | 代理请求到目标 Agent，支持 `history=1&limit=N` 查询历史数据 |
 
 ## 项目结构
 
 ```text
 GPUWebMonitor/
 ├── backend/
-│   ├── app.py             # Agent 服务，运行在被监控服务器
-│   ├── dashboard.py       # Dashboard 服务，托管前端并代理 Agent 请求
+│   ├── app.py             # Agent 服务，运行在被监控服务器上
+│   ├── dashboard.py       # Dashboard 服务，前端代理和请求转发
 │   ├── gpu_monitor.py     # GPU 和系统指标采集逻辑
 │   ├── stress.py          # 压力测试脚本
 │   └── requirements.txt   # Python 依赖
@@ -296,10 +278,15 @@ GPUWebMonitor/
 │   ├── index.html         # 前端页面
 │   ├── app.js             # 前端业务逻辑
 │   ├── style.css          # 前端样式
-│   ├── config.json        # 被监控服务器配置
+│   ├── config.json        # 监控节点配置
+│   ├── vendor/            # 本地化前端依赖
+│   │   ├── vue.global.prod.js
+│   │   ├── element-plus.js
+│   │   ├── element-plus.css
+│   │   └── element-plus-icons.js
 │   └── favicon / icon     # 浏览器图标资源
 ├── pictures/
-│   └── readme1.png        # README 预览图
+│   └── readme1.png        # README 预览截图
 ├── LICENSE
 └── README.md
 ```
@@ -307,28 +294,28 @@ GPUWebMonitor/
 ## 技术栈
 
 - **后端**：Python、Flask、Flask-CORS、nvitop、psutil、SQLite
-- **前端**：Vue 3、Element Plus、原生 JavaScript
-- **部署**：直接运行 Python 服务，或使用 systemd 托管
+- **前端**：Vue 3、Element Plus、原生 JavaScript（无构建步骤）
+- **部署**：直接运行 Python 服务，或通过 systemd 管理
 
-## 故障排查
+## 常见问题
 
-### Dashboard 页面无法加载服务器列表
+### Dashboard 无法加载服务器列表
 
-- 确认 Dashboard 已启动，并访问的是 `http://<dashboard-host>:28456`。
-- 确认 `front/config.json` 是合法 JSON。
-- 查看 Dashboard 日志中是否有配置文件路径或 JSON 解析错误。
+- 确认 Dashboard 正在运行，且访问地址为 `http://<dashboard-host>:28456`
+- 确认 `front/config.json` 是有效的 JSON
+- 查看 Dashboard 日志是否有配置文件路径或 JSON 解析错误
 
-### 某个节点获取数据失败
+### 节点无法返回数据
 
-- 确认目标 Agent 正在运行：`curl http://<agent-host>:15896/api/status`。
-- 确认 Dashboard 服务器可以访问 Agent 地址。
-- 检查 `front/config.json` 中该节点的 `url` 是否包含正确端口。
+- 确认目标 Agent 正在运行：`curl http://<agent-host>:15896/api/status`
+- 确认 Dashboard 服务器可以访问 Agent URL
+- 检查 `front/config.json` 中该节点的 `url` 是否包含正确端口
 
 ### GPU 信息为空或权限不足
 
-- 确认服务器已安装 NVIDIA 驱动，并且 `nvidia-smi` 可正常输出。
-- 确认运行 Agent 的用户有权限读取 GPU 和进程信息。
-- 如需查看其他用户进程的完整命令行，可能需要调整系统权限或使用具备相应权限的用户运行 Agent。
+- 确认 NVIDIA 驱动已安装且 `nvidia-smi` 可正常运行
+- 确认运行 Agent 的用户有权限读取 GPU 和进程信息
+- 查看其他用户进程的完整命令行可能需要调整系统权限
 
 ### 端口被占用
 
@@ -336,11 +323,11 @@ GPUWebMonitor/
 ss -ltnp | grep -E '15896|28456'
 ```
 
-如需修改端口，请分别调整 `backend/app.py` 中的 `PORT` 和 `backend/dashboard.py` 中的 `app.run(..., port=28456)`。
+修改端口：编辑 `backend/app.py` 中的 `PORT` 和 `backend/dashboard.py` 中的 `app.run(..., port=28456)`。
 
 ## 许可证
 
-本项目基于 GNU General Public License v3.0 开源，详情见 [LICENSE](LICENSE)。
+本项目基于 GNU General Public License v3.0 开源，详见 [LICENSE](LICENSE)。
 
 ## 致谢
 

@@ -293,12 +293,13 @@ code { color: var(--ink-secondary); font-family: "SFMono-Regular", Consolas, mon
   .command-bar { gap: 14px; margin-bottom: 22px; padding: 14px; border-radius: var(--radius-md); }
   .brand-mark { flex-basis: 40px; height: 40px; }
   .brand-copy p { white-space: normal; }
-  .command-actions { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; width: 100%; }
+  .command-actions { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
   .command-actions .el-button { min-height: 38px; }
-  .connection-pill { grid-column: 1 / -1; width: 100%; }
-  .node-select-control { grid-column: 1 / 3; width: 100%; }
-  .refresh-control { grid-column: 1 / 3; min-height: 38px; }
-  .refresh-button { grid-column: 3; grid-row: 2; }
+  .connection-pill { width: 100%; }
+  .node-select-control { flex: 1 1 60%; min-width: 0; width: auto; }
+  .refresh-control { flex: 0 0 auto; min-height: 38px; }
+  .refresh-button { flex: 0 0 auto; }
+  .command-actions > .el-dropdown { flex: 0 0 auto; }
   .network-grid { grid-template-columns: 1fr; }
   .gpu-header { align-items: flex-start; flex-direction: column; }
   .gpu-header-left { flex-wrap: wrap; }
@@ -325,10 +326,9 @@ code { color: var(--ink-secondary); font-family: "SFMono-Regular", Consolas, mon
 
 @media (max-width: 420px) {
   .brand-copy h1 { font-size: 18px; }
-  .command-actions { grid-template-columns: 1fr auto; }
-  .node-select-control, .refresh-control { grid-column: 1 / -1; }
-  .refresh-button { grid-column: 2; grid-row: 3; }
-  .refresh-control { padding-right: 48px; }
+  .command-actions { gap: 8px; }
+  .node-select-control { flex: 1 1 100%; }
+  .refresh-control { flex: 0 0 auto; }
   .command-actions > .el-dropdown { min-width: 0; }
   .command-actions > .el-dropdown .el-button { width: 100%; padding: 8px 10px; }
   .kpi-grid { grid-template-columns: 1fr; }

@@ -7,7 +7,7 @@
 [![Vue](https://img.shields.io/badge/Vue-3-4FC08D.svg)](https://vuejs.org/)
 [![Flask](https://img.shields.io/badge/Flask-2.x-000000.svg)](https://flask.palletsprojects.com/)
 
-**GPUWebMonitor** is a lightweight GPU server monitoring system for viewing real-time status, system metrics, and GPU process information across multiple GPU servers from one dashboard.
+**GPUWebMonitor** is a lightweight GPU server monitoring system for viewing real-time status, system resources, and GPU process information across multiple GPU servers from a single dashboard.
 
 > This project is still under development. Use it in a trusted intranet or controlled test environment. It is not recommended for direct production use yet.
 
@@ -15,13 +15,17 @@
 
 ## Features
 
-- **Centralized multi-server monitoring**: View multiple Agent nodes from one Dashboard.
-- **Live status refresh**: The frontend supports manual refresh and auto refresh.
-- **GPU metrics**: Shows utilization, VRAM usage, temperature, power, fan speed, and more.
-- **Process-level monitoring**: Shows GPU process PID, user, process name, GPU memory usage, and command line.
-- **System resource monitoring**: Shows CPU, memory, and network traffic metrics.
-- **Historical data recording**: The Agent writes SQLite history every 30 seconds by default and keeps data for 30 days.
-- **Simple static frontend hosting**: The Dashboard service directly serves the frontend files under `front/`.
+- **Centralized multi-server monitoring**: View multiple Agent nodes from one Dashboard
+- **Live refresh**: Manual refresh and 3-second auto-refresh
+- **GPU monitoring**: Core utilization, VRAM usage, temperature, power, fan speed, memory controller utilization
+- **Process monitoring**: Per-GPU compute process PID, user, GPU memory usage, command line
+- **System resources**: CPU usage and frequency, memory usage, cumulative and real-time network I/O
+- **Utilization trend chart**: SVG polyline chart for CPU / Memory / GPU average, supporting live mode and historical mode (10 min, 30 min, 1 hour, 6 hours, 12 hours)
+- **Historical data recording**: Agent writes to SQLite every 30 seconds, retains 30 days by default
+- **Three-language support**: 中文, English, 日本語 with auto-detection from browser locale
+- **Theme switching**: Auto / Light / Dark modes, follows system preference
+- **Responsive design**: Adapts to desktop, tablet, and mobile with automatic layout switching
+- **Self-contained deployment**: All frontend assets served locally, no external CDN dependencies
 
 ## Architecture
 
@@ -36,7 +40,7 @@ Dashboard service backend/dashboard.py
   v
 Agent service backend/app.py
   |
-  | Uses nvitop / NVML / psutil
+  | Uses nvitop / NVML / psutil to collect data
   v
 GPU and system status
 ```
@@ -46,7 +50,7 @@ Default ports:
 | Service | File | Default Port | Description |
 | --- | --- | ---: | --- |
 | Agent | `backend/app.py` | `15896` | Runs on each monitored GPU server |
-| Dashboard | `backend/dashboard.py` | `28456` | Runs as the monitoring entry point; it can also run on the same machine as an Agent |
+| Dashboard | `backend/dashboard.py` | `28456` | Monitoring entry point; can also run on the same machine as an Agent |
 
 ## Requirements
 
@@ -66,7 +70,7 @@ cd GPUWebMonitor
 
 ### 2. Create a Python environment
 
-It is recommended to create an isolated Python environment for this project. Choose either `venv` or `conda`.
+It is recommended to create an isolated Python environment. Choose either `venv` or `conda`.
 
 Using `venv`:
 
@@ -82,23 +86,18 @@ conda create -n gpuwebmonitor python=3.12
 conda activate gpuwebmonitor
 ```
 
-After activating the environment, check the Python path currently in use:
+After activating the environment, check the Python path:
 
 ```bash
-where python
+where python    # Windows
+which python    # Linux / macOS
 ```
 
-On Linux/macOS, you can also use:
-
-```bash
-which python
-```
-
-When configuring systemd later, use this absolute Python path in `ExecStart`.
+Use this absolute path in `ExecStart` when configuring systemd later.
 
 ### 3. Install backend dependencies
 
-Install dependencies on the Dashboard server and on every Agent server:
+Install on both the Dashboard server and every Agent server:
 
 ```bash
 cd backend
@@ -114,19 +113,17 @@ Edit `front/config.json` and add each Agent to `servers`:
   "servers": [
     {
       "id": "server1",
-      "name": "2080Ti Server",
-      "url": "http://192.168.30.246:15896"
+      "name": "5090D Server",
+      "url": "http://192.168.30.107:15896"
     },
     {
       "id": "server2",
-      "name": "4090D Server",
-      "url": "http://192.168.30.223:15896"
+      "name": "4090 Server",
+      "url": "http://192.168.30.16:15896"
     }
   ]
 }
 ```
-
-Field descriptions:
 
 | Field | Description |
 | --- | --- |
@@ -136,14 +133,14 @@ Field descriptions:
 
 ### 5. Start the Agent
 
-Run this on each monitored GPU server:
+Run on each monitored GPU server:
 
 ```bash
 cd backend
 python app.py
 ```
 
-Check whether the Agent is working:
+Verify the Agent is working:
 
 ```bash
 curl http://127.0.0.1:15896/
@@ -152,7 +149,7 @@ curl http://127.0.0.1:15896/api/status
 
 ### 6. Start the Dashboard
 
-Run this on the monitoring entry server:
+Run on the monitoring entry server:
 
 ```bash
 cd backend
@@ -165,24 +162,17 @@ Open in your browser:
 http://<dashboard-host>:28456
 ```
 
-If the Dashboard and browser are on the same machine, use:
+Local access:
 
 ```text
 http://127.0.0.1:28456
 ```
 
-## systemd Deployment Example
+## systemd Deployment
 
 ### Agent service
 
-First check the Python interpreter path for the active environment:
-
-```bash
-where python
-# On Linux/macOS, you can also use: which python
-```
-
-Create `/etc/systemd/system/gpu-monitor-agent.service`, and replace `/path/to/python` in `ExecStart` with the absolute path found above:
+After confirming the Python path, create `/etc/systemd/system/gpu-monitor-agent.service`:
 
 ```ini
 [Unit]
@@ -202,8 +192,6 @@ WantedBy=multi-user.target
 ```
 
 ### Dashboard service
-
-Also replace `/path/to/python` in `ExecStart` with the absolute Python path of the active environment.
 
 Create `/etc/systemd/system/gpu-monitor-dashboard.service`:
 
@@ -245,24 +233,18 @@ journalctl -u gpu-monitor-dashboard -f
 
 ### Agent configuration
 
-The main Agent settings are at the top of `backend/app.py`:
+Main settings are at the top of `backend/app.py`:
 
 | Setting | Default | Description |
 | --- | ---: | --- |
 | `PORT` | `15896` | Agent listen port |
-| `RECORD_INTERVAL` | `30` | Historical data collection interval, in seconds |
-| `KEEP_HISTORY_DAYS` | `30` | SQLite history retention period, in days |
+| `RECORD_INTERVAL` | `30` | Historical data collection interval (seconds) |
+| `KEEP_HISTORY_DAYS` | `30` | SQLite history retention period (days) |
 | `DB_FILE` | `backend/monitor_data.db` | Historical data file path |
 
 ### Dashboard configuration
 
-The Dashboard reads:
-
-```text
-front/config.json
-```
-
-It forwards frontend requests to the selected Agent's `/api/status` endpoint through `/api/proxy?id=<server_id>`.
+Dashboard reads `front/config.json` for the server list and forwards requests via `/api/proxy?id=<server_id>` to the target Agent.
 
 ## API
 
@@ -272,7 +254,7 @@ It forwards frontend requests to the selected Agent's `/api/status` endpoint thr
 | --- | --- | --- |
 | `GET` | `/` | Health check |
 | `GET` | `/api/status` | Get current GPU and system status |
-| `GET` | `/api/history?limit=100` | Get historical monitoring data. The maximum `limit` is 1000 |
+| `GET` | `/api/history?limit=100` | Get historical data. Max `limit` is 1000 |
 
 ### Dashboard
 
@@ -280,7 +262,7 @@ It forwards frontend requests to the selected Agent's `/api/status` endpoint thr
 | --- | --- | --- |
 | `GET` | `/` | Frontend page |
 | `GET` | `/api/config` | Get server configuration |
-| `GET` | `/api/proxy?id=<server_id>` | Proxy request to the selected Agent |
+| `GET` | `/api/proxy?id=<server_id>` | Proxy to Agent. Supports `history=1&limit=N` for historical data |
 
 ## Project Structure
 
@@ -288,18 +270,23 @@ It forwards frontend requests to the selected Agent's `/api/status` endpoint thr
 GPUWebMonitor/
 ├── backend/
 │   ├── app.py             # Agent service, runs on monitored servers
-│   ├── dashboard.py       # Dashboard service, serves frontend and proxies Agent requests
+│   ├── dashboard.py       # Dashboard service, frontend proxy and request forwarding
 │   ├── gpu_monitor.py     # GPU and system metric collection logic
 │   ├── stress.py          # Stress test script
 │   └── requirements.txt   # Python dependencies
 ├── front/
 │   ├── index.html         # Frontend page
-│   ├── app.js             # Frontend business logic
+│   ├── app.js             # Frontend application logic
 │   ├── style.css          # Frontend styles
 │   ├── config.json        # Monitored server configuration
+│   ├── vendor/            # Localized frontend dependencies
+│   │   ├── vue.global.prod.js
+│   │   ├── element-plus.js
+│   │   ├── element-plus.css
+│   │   └── element-plus-icons.js
 │   └── favicon / icon     # Browser icon assets
 ├── pictures/
-│   └── readme1.png        # README preview image
+│   └── readme1.png        # README preview screenshot
 ├── LICENSE
 └── README.md
 ```
@@ -307,28 +294,28 @@ GPUWebMonitor/
 ## Tech Stack
 
 - **Backend**: Python, Flask, Flask-CORS, nvitop, psutil, SQLite
-- **Frontend**: Vue 3, Element Plus, vanilla JavaScript
-- **Deployment**: Run Python services directly, or manage them with systemd
+- **Frontend**: Vue 3, Element Plus, vanilla JavaScript (no build step)
+- **Deployment**: Run Python services directly, or manage with systemd
 
 ## Troubleshooting
 
-### The Dashboard cannot load the server list
+### Dashboard cannot load the server list
 
-- Make sure the Dashboard is running and you are visiting `http://<dashboard-host>:28456`.
-- Make sure `front/config.json` is valid JSON.
-- Check Dashboard logs for config file path or JSON parsing errors.
+- Make sure the Dashboard is running at `http://<dashboard-host>:28456`
+- Make sure `front/config.json` is valid JSON
+- Check Dashboard logs for config path or JSON parsing errors
 
 ### A node fails to return data
 
-- Make sure the target Agent is running: `curl http://<agent-host>:15896/api/status`.
-- Make sure the Dashboard server can reach the Agent URL.
-- Check whether the node `url` in `front/config.json` includes the correct port.
+- Make sure the target Agent is running: `curl http://<agent-host>:15896/api/status`
+- Make sure the Dashboard server can reach the Agent URL
+- Check that the node `url` in `front/config.json` includes the correct port
 
 ### GPU information is empty or permission is insufficient
 
-- Make sure the NVIDIA driver is installed and `nvidia-smi` works.
-- Make sure the user running the Agent has permission to read GPU and process information.
-- To view complete command lines for processes owned by other users, you may need to adjust system permissions or run the Agent with a user that has the required permissions.
+- Make sure the NVIDIA driver is installed and `nvidia-smi` works
+- Make sure the user running the Agent has permission to read GPU and process information
+- Viewing complete command lines for other users' processes may require elevated permissions
 
 ### Port is already in use
 
