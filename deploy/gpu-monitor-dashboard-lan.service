@@ -1,0 +1,28 @@
+[Unit]
+Description=GPU Monitor Dashboard (LAN mode)
+After=network-online.target gpu-monitor-agent.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_GROUP@
+Environment=GPU_MONITOR_DEPLOYMENT_MODE=lan
+Environment=GPU_MONITOR_DASHBOARD_HOST=0.0.0.0
+Environment=GPU_MONITOR_DASHBOARD_PORT=28456
+Environment=GPU_MONITOR_CONFIG_FILE=@APP_ROOT@/front/config.lan.json
+WorkingDirectory=@APP_ROOT@/backend
+ExecStart=@PYTHON@ -m gunicorn --workers 2 --threads 4 --bind 0.0.0.0:28456 --access-logfile - --error-logfile - dashboard:app
+Restart=always
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

@@ -5,9 +5,11 @@ import time
 import threading
 import logging
 import gc
+import secrets
 from datetime import datetime, timedelta
 from flask import Flask, jsonify, request, g
 from flask_cors import CORS
+from deployment_mode import LAN_MODE, load_deployment_mode
 
 # 假设 gpu_monitor 存在于路径中
 try:
@@ -24,7 +26,10 @@ BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 DB_FILE = os.path.join(BASE_DIR, 'monitor_data.db')
 RECORD_INTERVAL = 30
 KEEP_HISTORY_DAYS = 30
-PORT = 15896
+PORT = int(os.environ.get('GPU_MONITOR_PORT', '15896'))
+HOST = os.environ.get('GPU_MONITOR_HOST', '0.0.0.0')
+AGENT_TOKEN = os.environ.get('GPU_MONITOR_AGENT_TOKEN', '')
+DEPLOYMENT_MODE = load_deployment_mode()
 
 # 日志配置
 logging.basicConfig(
@@ -34,7 +39,27 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)
+if DEPLOYMENT_MODE == LAN_MODE:
+    # Match the original LAN deployment, where browsers may query Agents
+    # directly from another intranet origin. Public Agents are private APIs.
+    CORS(app)
+
+
+@app.before_request
+def require_agent_token():
+    """Require a token in public mode and preserve the original LAN behavior."""
+    if not request.path.startswith('/api/') or DEPLOYMENT_MODE == LAN_MODE:
+        return None
+
+    if not AGENT_TOKEN:
+        logger.error("Public Agent mode requires GPU_MONITOR_AGENT_TOKEN")
+        return jsonify({"code": 503, "msg": "Public Agent security is not configured"}), 503
+
+    authorization = request.headers.get('Authorization', '')
+    scheme, _, supplied_token = authorization.partition(' ')
+    if scheme.lower() != 'bearer' or not secrets.compare_digest(supplied_token, AGENT_TOKEN):
+        return jsonify({"code": 401, "msg": "Unauthorized"}), 401
+    return None
 
 # --- 数据库核心逻辑 ---
 
@@ -166,6 +191,7 @@ def background_recorder():
 def health_check():
     return jsonify({
         "status": "ok",
+        "deployment_mode": DEPLOYMENT_MODE,
         "fd_count": get_fd_count(),
         "time": datetime.now().isoformat()
     })
@@ -225,6 +251,6 @@ if __name__ == '__main__':
     )
     recorder_thread.start()
 
-    logger.info(f"Agent 启动在端口 {PORT}，模式：稳定性优先")
+    logger.info(f"Agent 启动在 {HOST}:{PORT}，部署模式：{DEPLOYMENT_MODE}")
     # 使用 threaded=True 处理并发请求，但限制线程数（可选）
-    app.run(host='0.0.0.0', port=PORT, debug=False, threaded=True)
+    app.run(host=HOST, port=PORT, debug=False, threaded=True)

@@ -2,3 +2,5 @@ Flask
 Flask-CORS
 nvitop
 psutil
+requests
+gunicorn

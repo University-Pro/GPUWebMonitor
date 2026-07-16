@@ -1,0 +1,14 @@
+{
+  "servers": [
+    {
+      "id": "node-a",
+      "name": "GPU 节点 A",
+      "url": "http://127.0.0.1:15897"
+    },
+    {
+      "id": "node-b",
+      "name": "GPU 节点 B",
+      "url": "http://10.0.0.12:15897"
+    }
+  ]
+}
