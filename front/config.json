@@ -2,26 +2,31 @@
   "servers": [
     {
       "id": "server1",
+      "name": "B300服务器",
+      "url": "http://192.168.30.8:15897"
+    },
+    {
+      "id": "server2",
       "name": "Yang-5090D服务器",
       "url": "http://192.168.30.107:15896"	  
     },
     {
-      "id": "server2",
+      "id": "server3",
       "name": "Yang-4090服务器",
       "url": "http://192.168.30.16:15896"
     },
     {
-      "id": "server3",
+      "id": "server4",
       "name": "4090D服务器",
       "url": "http://192.168.30.223:15896"
     },
     {
-      "id": "server4",
+      "id": "server5",
       "name": "5090D服务器",
       "url": "http://192.168.30.192:15896"
     },
     {
-      "id": "server5",
+      "id": "server6",
       "name": "3060Ti服务器",
       "url": "http://192.168.30.161:15896"
     }
