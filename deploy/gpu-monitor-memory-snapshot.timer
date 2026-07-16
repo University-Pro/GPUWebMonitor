@@ -1,0 +1,11 @@
+[Unit]
+Description=Refresh GPU Monitor PSS memory snapshot
+
+[Timer]
+OnBootSec=10s
+OnUnitActiveSec=5s
+AccuracySec=1s
+Unit=gpu-monitor-memory-snapshot.service
+
+[Install]
+WantedBy=timers.target
