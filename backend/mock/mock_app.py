@@ -7,7 +7,7 @@ Mock 后端服务
     python -m mock.mock_app              # 在 backend/ 目录下运行
     python backend/mock/mock_app.py      # 在项目根目录运行
 
-默认端口: 15896（与真实后端一致，方便前端直接对接）
+默认端口: 15897
 """
 
 import os
