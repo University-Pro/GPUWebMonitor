@@ -6,6 +6,6 @@ monitor_data.db-wal
 # 忽略pycache文件夹
 __pycache__/
 # 忽略.vscode
-.vscode/
+.vscode
 # 忽略venv
 venv/
