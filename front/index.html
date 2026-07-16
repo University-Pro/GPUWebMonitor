@@ -11,8 +11,8 @@
   <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png" />
   <link rel="icon" type="image/png" sizes="192x192" href="android-chrome-192x192.png" />
   <link rel="stylesheet" href="vendor/element-plus.css" />
-  <link rel="stylesheet" href="style.css?v=20260710" />
-  <script src="vendor/vue.global.prod.js"></script>
+  <link rel="stylesheet" href="style.css?v=20260716-2" />
+  <script src="vendor/vue.runtime.global.prod.js?v=3.5.39"></script>
   <script src="vendor/element-plus.js"></script>
   <script src="vendor/element-plus-icons.js"></script>
 </head>
@@ -146,6 +146,82 @@
           </article>
         </section>
 
+        <section class="dashboard-section" aria-labelledby="system-process-title">
+          <article class="panel system-process-panel">
+            <el-collapse class="system-process-collapse">
+              <el-collapse-item name="system-processes">
+                <template #title>
+                  <div class="system-process-heading">
+                    <span class="process-title">
+                      <strong id="system-process-title">{{ translate('systemProcess.title') }}</strong>
+                      <span v-if="systemProcessSort === 'user'">{{ translate('systemProcess.userCount', systemUsers.length) }}</span>
+                      <span v-else>{{ translate('systemProcess.count', sortedSystemProcesses.length, systemProcessInstanceCount) }}</span>
+                    </span>
+                    <el-button-group class="system-process-sort" @click.stop>
+                      <el-button size="small" :type="systemProcessSort === 'cpu' ? 'primary' : 'default'" @click.stop="setSystemProcessSort('cpu')">
+                        {{ translate('systemProcess.sortCpu') }}
+                      </el-button>
+                      <el-button size="small" :type="systemProcessSort === 'memory' ? 'primary' : 'default'" @click.stop="setSystemProcessSort('memory')">
+                        {{ translate('systemProcess.sortMemory') }}
+                      </el-button>
+                      <el-button size="small" :type="systemProcessSort === 'user' ? 'primary' : 'default'" @click.stop="setSystemProcessSort('user')">
+                        {{ translate('systemProcess.sortUser') }}
+                      </el-button>
+                    </el-button-group>
+                  </div>
+                </template>
+
+                <p class="system-process-note">{{ translate(systemProcessSort === 'user' ? 'systemProcess.userNote' : 'systemProcess.note') }}</p>
+
+                <div v-if="systemProcessSort !== 'user'" class="desktop-process-table">
+                  <el-table :data="sortedSystemProcesses" size="small" :empty-text="translate('systemProcess.empty')" max-height="520">
+                    <el-table-column :label="translate('systemProcess.instances')" width="110"><template #default="scope"><span :title="formatProcessPids(scope.row)">{{ formatProcessInstances(scope.row) }}</span></template></el-table-column>
+                    <el-table-column prop="username" :label="translate('process.user')" width="130" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="name" :label="translate('process.name')" min-width="150" show-overflow-tooltip></el-table-column>
+                    <el-table-column :label="translate('systemProcess.cpu')" width="105" align="right"><template #default="scope">{{ formatPercent(scope.row.cpu_percent, 1) }}</template></el-table-column>
+                    <el-table-column :label="translate('systemProcess.memory')" width="150" align="right"><template #default="scope">{{ formatBytes(scope.row.memory_bytes) }} · {{ formatPercent(scope.row.memory_percent, 1) }}</template></el-table-column>
+                    <el-table-column prop="command" :label="translate('process.command')" min-width="320" show-overflow-tooltip><template #default="scope"><code>{{ scope.row.command }}</code></template></el-table-column>
+                  </el-table>
+                </div>
+
+                <div v-else class="desktop-process-table">
+                  <el-table :data="systemUsers" size="small" :empty-text="translate('systemProcess.emptyUser')" max-height="520" :default-sort="{ prop: 'cpu_percent', order: 'descending' }">
+                    <el-table-column prop="username" :label="translate('process.user')" min-width="170" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="cpu_percent" :label="translate('systemProcess.cpu')" width="150" align="right" sortable><template #default="scope">{{ formatPercent(scope.row.cpu_percent, 1) }}</template></el-table-column>
+                    <el-table-column prop="memory_bytes" :label="translate('systemProcess.memory')" width="180" align="right" sortable><template #default="scope">{{ formatBytes(scope.row.memory_bytes) }} · {{ formatPercent(scope.row.memory_percent, 1) }}</template></el-table-column>
+                    <el-table-column prop="process_group_count" :label="translate('systemProcess.groups')" width="130" align="right"></el-table-column>
+                    <el-table-column prop="instance_count" :label="translate('systemProcess.instanceCount')" width="130" align="right"></el-table-column>
+                  </el-table>
+                </div>
+
+                <div v-if="systemProcessSort !== 'user'" class="mobile-process-list">
+                  <div v-if="!sortedSystemProcesses.length" class="empty-inline">{{ translate('systemProcess.empty') }}</div>
+                  <article v-for="process in sortedSystemProcesses" :key="`system-${process.username}-${process.name}-${process.command}`" class="process-card">
+                    <div class="process-card__head"><strong>{{ process.name }}</strong><span :title="formatProcessPids(process)">{{ formatProcessInstances(process) }}</span></div>
+                    <dl>
+                      <div><dt>{{ translate('process.user') }}</dt><dd>{{ process.username }}</dd></div>
+                      <div><dt>{{ translate('systemProcess.cpu') }}</dt><dd>{{ formatPercent(process.cpu_percent, 1) }}</dd></div>
+                      <div><dt>{{ translate('systemProcess.memory') }}</dt><dd>{{ formatBytes(process.memory_bytes) }} · {{ formatPercent(process.memory_percent, 1) }}</dd></div>
+                      <div class="process-command"><dt>{{ translate('process.command') }}</dt><dd><code>{{ process.command }}</code></dd></div>
+                    </dl>
+                  </article>
+                </div>
+                <div v-else class="mobile-process-list">
+                  <div v-if="!systemUsers.length" class="empty-inline">{{ translate('systemProcess.emptyUser') }}</div>
+                  <article v-for="user in systemUsers" :key="`system-user-${user.username}`" class="process-card">
+                    <div class="process-card__head"><strong>{{ user.username }}</strong><span>{{ formatPercent(user.cpu_percent, 1) }}</span></div>
+                    <dl>
+                      <div><dt>{{ translate('systemProcess.memory') }}</dt><dd>{{ formatBytes(user.memory_bytes) }} · {{ formatPercent(user.memory_percent, 1) }}</dd></div>
+                      <div><dt>{{ translate('systemProcess.groups') }}</dt><dd>{{ user.process_group_count }}</dd></div>
+                      <div><dt>{{ translate('systemProcess.instanceCount') }}</dt><dd>{{ user.instance_count }}</dd></div>
+                    </dl>
+                  </article>
+                </div>
+              </el-collapse-item>
+            </el-collapse>
+          </article>
+        </section>
+
         <section class="dashboard-section" aria-labelledby="gpu-title">
           <div class="section-heading section-heading--inline"><div><span class="eyebrow">Accelerators</span><h2 id="gpu-title">{{ translate('gpu.title') }}</h2></div><span class="count-badge">{{ translate('units.cards', gpuList.length) }}</span></div>
 
@@ -216,6 +292,7 @@
 
     <footer class="footer-copyright"><p>{{ translate('footer.line1') }}</p></footer>
   </div>
-  <script src="app.js?v=20260710"></script>
+  <script src="app.render.js?v=20260716-3"></script>
+  <script src="app.js?v=20260716-4"></script>
 </body>
 </html>

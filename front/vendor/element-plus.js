@@ -1198,7 +1198,7 @@ Object.defineProperties(exports, { __esModule: { value: true }, [Symbol.toString
 //#endregion
 //#region ../../node_modules/.pnpm/lodash-es@4.18.1/node_modules/lodash-es/_root.js
 	var freeSelf = typeof self == "object" && self && self.Object === Object && self;
-	var root = freeGlobal || freeSelf || Function("return this")();
+	var root = freeGlobal || freeSelf || globalThis;
 
 //#endregion
 //#region ../../node_modules/.pnpm/lodash-es@4.18.1/node_modules/lodash-es/_Symbol.js

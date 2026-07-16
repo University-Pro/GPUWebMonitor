@@ -9,3 +9,6 @@ __pycache__/
 .vscode/
 # 忽略venv
 venv/
+.venv/
+node_modules/
+.DS_Store
