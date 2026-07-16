@@ -19,6 +19,7 @@
 - **实时刷新**：支持手动刷新和 3 秒间隔自动刷新
 - **GPU 监控**：核心利用率、显存占用、温度、功耗、风扇转速、显存控制器利用率
 - **进程监控**：每个 GPU 的计算进程 PID、用户、显存占用、命令行
+- **系统进程监控**：折叠查看高占用系统进程，CPU 使用整机口径，内存使用可相加的 PSS，并支持按 CPU、内存或用户汇总查看
 - **系统资源**：CPU 使用率与频率、内存使用量、网络累计收发与实时速率
 - **利用率趋势图**：CPU / 内存 / GPU 平均利用率的 SVG 折线图，支持实时模式和历史模式（10 分钟、30 分钟、1 小时、6 小时、12 小时）
 - **历史数据记录**：Agent 每 30 秒写入 SQLite，默认保留 30 天
@@ -104,6 +105,18 @@ cd backend
 pip install -r requirements.txt
 ```
 
+### 3.1 预编译前端模板
+
+仅在修改 `front/index.html` 或升级 Vue 时需要执行。构建过程会生成 CSP 兼容的渲染函数和 runtime-only Vue 文件，线上浏览器不需要 `unsafe-eval`：
+
+```bash
+pnpm install
+pnpm run build:front
+pnpm run check:front
+```
+
+部署时需要包含生成的 `front/app.render.js` 和 `front/vendor/vue.runtime.global.prod.js`。
+
 ### 4. 配置服务器列表
 
 编辑 `front/config.json`，将各 Agent 添加到 `servers` 数组：
@@ -114,12 +127,12 @@ pip install -r requirements.txt
     {
       "id": "server1",
       "name": "5090D 服务器",
-      "url": "http://192.168.30.107:15896"
+      "url": "http://192.168.1.101:15896"
     },
     {
       "id": "server2",
       "name": "4090 服务器",
-      "url": "http://192.168.30.16:15896"
+      "url": "http://192.168.1.102:15896"
     }
   ]
 }
@@ -231,6 +244,38 @@ journalctl -u gpu-monitor-dashboard -f
 
 ## 配置说明
 
+### 部署模式
+
+`GPU_MONITOR_DEPLOYMENT_MODE` 是服务器端安全开关，支持 `public` 和 `lan`。未设置时保持原项目兼容行为：使用 `lan` 模式和 `front/config.json`。该模式必须通过环境变量或 systemd 配置，不能由网页切换。
+
+| 能力 | `public` 公网模式 | `lan` 局域网模式 |
+| --- | --- | --- |
+| Dashboard 登录 | 强制 HTTP Basic；缺少凭据时返回 503 | 不需要用户名和密码 |
+| Agent API | 强制 Bearer Token；缺少 Token 时返回 503 | 不需要 Token |
+| 节点 URL | `/api/config` 只返回 ID 和名称 | 返回完整内网 URL，兼容原 GitHub 版 |
+| `/config.json` | 禁止访问所有节点配置 JSON | 返回当前局域网节点配置 |
+| CORS | 关闭，仅允许同源网页通过 Dashboard 访问 | 开启，允许局域网网页直接访问 API |
+| HTTPS/CSP | 建议使用 `deploy/nginx-gpu-monitor.conf` | 可直接使用 HTTP，不发送 HSTS |
+
+公网模式示例：
+
+```bash
+export GPU_MONITOR_DEPLOYMENT_MODE=public
+export GPU_MONITOR_DASHBOARD_USERNAME='monitor'
+export GPU_MONITOR_DASHBOARD_PASSWORD='replace-with-strong-password'
+export GPU_MONITOR_AGENT_TOKEN='replace-with-random-token'
+```
+
+局域网模式示例：
+
+```bash
+export GPU_MONITOR_DEPLOYMENT_MODE=lan
+export GPU_MONITOR_DASHBOARD_HOST=0.0.0.0
+export GPU_MONITOR_DASHBOARD_PORT=28456
+```
+
+两个模式可以使用不同端口和 systemd 服务同时运行。公网和局域网的默认节点列表分别为 `front/config.public.json` 与 `front/config.lan.json`；`GPU_MONITOR_CONFIG_FILE` 仍可覆盖默认路径。
+
 ### Agent 配置
 
 主要配置项位于 `backend/app.py` 顶部：
@@ -242,9 +287,31 @@ journalctl -u gpu-monitor-dashboard -f
 | `KEEP_HISTORY_DAYS` | `30` | SQLite 历史数据保留天数 |
 | `DB_FILE` | `backend/monitor_data.db` | 历史数据文件路径 |
 
+以下环境变量可用于部署加固：
+
+| 环境变量 | 作用 |
+| --- | --- |
+| `GPU_MONITOR_DEPLOYMENT_MODE` | `public` 或 `lan`；未设置时兼容原版 `lan` 行为 |
+| `GPU_MONITOR_AGENT_TOKEN` | 公网模式必须设置；所有 Agent `/api/*` 请求需携带同值 Bearer Token |
+| `GPU_MONITOR_HOST` | Agent 监听地址，默认 `0.0.0.0` |
+| `GPU_MONITOR_PORT` | Agent 监听端口，默认 `15896` |
+
 ### Dashboard 配置
 
-Dashboard 读取 `front/config.json` 获取服务器列表，通过 `/api/proxy?id=<server_id>` 将请求转发到目标 Agent。
+Dashboard 根据部署模式读取 `front/config.public.json` 或 `front/config.lan.json`，并通过 `/api/proxy?id=<server_id>` 将请求转发到目标 Agent。未设置模式时继续读取原有的 `front/config.json`。
+
+| 环境变量 | 作用 |
+| --- | --- |
+| `GPU_MONITOR_DEPLOYMENT_MODE` | `public` 或 `lan`；未设置时兼容原版 `lan` 行为 |
+| `GPU_MONITOR_DASHBOARD_USERNAME` | 公网模式必须设置的 HTTP Basic 用户名；局域网模式忽略 |
+| `GPU_MONITOR_DASHBOARD_PASSWORD` | 公网模式必须设置的 HTTP Basic 密码；局域网模式忽略 |
+| `GPU_MONITOR_AGENT_TOKEN` | 公网模式必须设置；局域网模式不会发送 |
+| `GPU_MONITOR_DASHBOARD_HOST` | Dashboard 监听地址，默认 `0.0.0.0` |
+| `GPU_MONITOR_DASHBOARD_PORT` | Dashboard 监听端口，默认 `28456` |
+| `GPU_MONITOR_CONFIG_FILE` | 可选的节点配置文件路径，默认 `front/config.json` |
+| `GPU_MONITOR_VERIFY_AGENT_TLS` | 是否校验 HTTPS Agent 证书；公网默认开启，局域网默认关闭 |
+
+公网部署时建议同时配置 Dashboard 用户名、密码和 Agent Token，并使用 HTTPS 反向代理。`/api/config` 仅向浏览器返回节点 ID 与名称，不公开 Agent 内网地址。
 
 ## API
 
@@ -277,16 +344,22 @@ GPUWebMonitor/
 ├── front/
 │   ├── index.html         # 前端页面
 │   ├── app.js             # 前端业务逻辑
+│   ├── app.render.js      # 预编译模板生成的渲染函数
 │   ├── style.css          # 前端样式
 │   ├── config.json        # 监控节点配置
+│   ├── config.public.json # 公网模式节点配置
+│   ├── config.lan.json    # 局域网模式节点配置
 │   ├── vendor/            # 本地化前端依赖
-│   │   ├── vue.global.prod.js
+│   │   ├── vue.runtime.global.prod.js
 │   │   ├── element-plus.js
 │   │   ├── element-plus.css
 │   │   └── element-plus-icons.js
 │   └── favicon / icon     # 浏览器图标资源
 ├── pictures/
 │   └── readme1.png        # README 预览截图
+├── scripts/
+│   └── build-front.mjs    # CSP 兼容的前端预编译脚本
+├── package.json
 ├── LICENSE
 └── README.md
 ```
@@ -294,7 +367,7 @@ GPUWebMonitor/
 ## 技术栈
 
 - **后端**：Python、Flask、Flask-CORS、nvitop、psutil、SQLite
-- **前端**：Vue 3、Element Plus、原生 JavaScript（无构建步骤）
+- **前端**：Vue 3 runtime-only、Element Plus、预编译渲染函数
 - **部署**：直接运行 Python 服务，或通过 systemd 管理
 
 ## 常见问题
