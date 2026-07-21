@@ -246,6 +246,7 @@ code { color: var(--ink-secondary); font-family: "SFMono-Regular", Consolas, mon
 
 /* Element Plus */
 .el-button { --el-button-bg-color: var(--surface); --el-button-text-color: var(--ink); --el-button-border-color: var(--border); --el-button-hover-bg-color: var(--brand-soft); --el-button-hover-text-color: var(--brand); --el-button-hover-border-color: var(--brand); border-radius: 9px; box-shadow: none; }
+.el-button.is-circle { border-radius: 50%; }
 .el-button--primary { --el-button-bg-color: var(--brand); --el-button-border-color: var(--brand); --el-button-text-color: #fff; --el-button-hover-bg-color: var(--brand-hover); --el-button-hover-border-color: var(--brand-hover); }
 .el-select { --el-select-input-focus-border-color: var(--focus); }
 .el-select__wrapper { min-height: 34px; background: var(--surface-subtle) !important; border: 1px solid var(--border); border-radius: 9px; box-shadow: none !important; }
@@ -294,7 +295,7 @@ code { color: var(--ink-secondary); font-family: "SFMono-Regular", Consolas, mon
   .brand-mark { flex-basis: 40px; height: 40px; }
   .brand-copy p { white-space: normal; }
   .command-actions { display: flex; flex-wrap: wrap; gap: 10px; width: 100%; }
-  .command-actions .el-button { min-height: 38px; }
+  .command-actions .el-button:not(.is-circle) { min-height: 38px; }
   .connection-pill { width: 100%; }
   .node-select-control { flex: 1 1 60%; min-width: 0; width: auto; }
   .refresh-control { flex: 0 0 auto; min-height: 38px; }
