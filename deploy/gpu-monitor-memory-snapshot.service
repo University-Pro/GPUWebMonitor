@@ -1,0 +1,32 @@
+[Unit]
+Description=GPU Monitor privileged PSS memory snapshot
+After=local-fs.target
+
+[Service]
+Type=oneshot
+User=root
+Group=@SERVICE_GROUP@
+ExecStart=@PYTHON@ @APP_ROOT@/backend/memory_snapshot.py --output /run/gpuwebmonitor-memory/process-memory.json
+RuntimeDirectory=gpuwebmonitor-memory
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+UMask=0022
+Nice=10
+IOSchedulingClass=idle
+TimeoutStartSec=15s
+NoNewPrivileges=true
+PrivateTmp=true
+PrivateDevices=true
+ProtectSystem=strict
+ProtectHome=read-only
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictAddressFamilies=AF_UNIX
+RestrictSUIDSGID=true
+LockPersonality=true
+SystemCallArchitectures=native
+CapabilityBoundingSet=CAP_SYS_PTRACE

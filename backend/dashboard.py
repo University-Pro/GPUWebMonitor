@@ -2,16 +2,71 @@
 import os
 import json
 import requests
-from flask import Flask, jsonify, request, make_response, send_from_directory
+import secrets
+from flask import Flask, jsonify, request, make_response, send_from_directory, Response
 from flask_cors import CORS
+from deployment_mode import (
+    LAN_MODE,
+    PUBLIC_MODE,
+    load_boolean_setting,
+    load_deployment_mode,
+)
 
 # 设置Flask
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # --- 路径配置 ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-CONFIG_FILE = os.path.join(CURRENT_DIR, '..', 'front', 'config.json')
+DEPLOYMENT_MODE = load_deployment_mode()
+DEFAULT_CONFIG_FILE = (
+    os.path.join(CURRENT_DIR, '..', 'front', f'config.{DEPLOYMENT_MODE}.json')
+    if 'GPU_MONITOR_DEPLOYMENT_MODE' in os.environ
+    else os.path.join(CURRENT_DIR, '..', 'front', 'config.json')
+)
+CONFIG_FILE = os.environ.get(
+    'GPU_MONITOR_CONFIG_FILE',
+    DEFAULT_CONFIG_FILE,
+)
+DASHBOARD_USERNAME = os.environ.get('GPU_MONITOR_DASHBOARD_USERNAME', '')
+DASHBOARD_PASSWORD = os.environ.get('GPU_MONITOR_DASHBOARD_PASSWORD', '')
+AGENT_TOKEN = os.environ.get('GPU_MONITOR_AGENT_TOKEN', '')
+DASHBOARD_HOST = os.environ.get('GPU_MONITOR_DASHBOARD_HOST', '0.0.0.0')
+DASHBOARD_PORT = int(os.environ.get('GPU_MONITOR_DASHBOARD_PORT', '28456'))
+VERIFY_AGENT_TLS = load_boolean_setting(
+    'GPU_MONITOR_VERIFY_AGENT_TLS',
+    DEPLOYMENT_MODE == PUBLIC_MODE,
+)
+
+if DEPLOYMENT_MODE == LAN_MODE:
+    # Match the original GitHub LAN deployment and allow intranet origins.
+    CORS(app, resources={r"/api/*": {"origins": "*"}})
+
+
+@app.before_request
+def require_dashboard_login():
+    """Enforce Basic auth publicly; LAN mode deliberately has no login."""
+    if DEPLOYMENT_MODE == LAN_MODE:
+        return None
+
+    if not DASHBOARD_USERNAME or not DASHBOARD_PASSWORD or not AGENT_TOKEN:
+        return jsonify({
+            "code": 503,
+            "msg": "Public Dashboard security is not configured",
+        }), 503
+
+    auth = request.authorization
+    valid = (
+        auth is not None
+        and secrets.compare_digest(auth.username or '', DASHBOARD_USERNAME)
+        and secrets.compare_digest(auth.password or '', DASHBOARD_PASSWORD)
+    )
+    if valid:
+        return None
+    return Response(
+        'Authentication required',
+        401,
+        {'WWW-Authenticate': 'Basic realm="GPU Cluster Monitor", charset="UTF-8"'},
+    )
 
 def load_config():
     """读取配置文件"""
@@ -43,6 +98,10 @@ def serve_index():
 @app.route('/<path:filename>')
 def serve_static(filename):
     """提供 front/ 目录下的静态资源（app.js, style.css 等）"""
+    if filename == 'config.json' and DEPLOYMENT_MODE == LAN_MODE:
+        return no_cache_response(jsonify(load_config()))
+    if filename.endswith('.json') and DEPLOYMENT_MODE == PUBLIC_MODE:
+        return jsonify({"error": "File not allowed"}), 403
     # 安全限制：只允许特定后缀，防止路径遍历
     if filename.endswith(('.js', '.css', '.html', '.json', '.png', '.jpg', '.ico')):
         response = make_response(send_from_directory(os.path.join(CURRENT_DIR, '..', 'front'), filename))
@@ -57,7 +116,17 @@ def get_config():
     前端会请求这个接口来获取 config.json 的内容
     """
     config = load_config()
-    return jsonify(config)
+    if DEPLOYMENT_MODE == LAN_MODE:
+        # Compatibility with the original GitHub version, which returned the
+        # full intranet Agent configuration and did not require a login.
+        return jsonify({**config, "deployment_mode": LAN_MODE})
+
+    # Public browsers only need display metadata. Keep Agent URLs private.
+    public_servers = [
+        {"id": server.get("id"), "name": server.get("name")}
+        for server in config.get("servers", [])
+    ]
+    return jsonify({"deployment_mode": PUBLIC_MODE, "servers": public_servers})
 
 @app.route('/api/proxy')
 def proxy_request():
@@ -92,10 +161,18 @@ def proxy_request():
         target_api = f"{base_url}/api/status"
 
     try:
-        # 替前端发起请求，设置超时时间防止后端卡死
-        # verify=False 是为了防止目标如果是 https 自签名证书报错
+        # Public mode verifies HTTPS Agents by default. LAN mode keeps the
+        # original self-signed-certificate compatibility unless overridden.
         print(f"Proxying request to: {target_api}")
-        resp = requests.get(target_api, timeout=10, verify=False)
+        headers = {}
+        if DEPLOYMENT_MODE == PUBLIC_MODE:
+            headers['Authorization'] = f'Bearer {AGENT_TOKEN}'
+        resp = requests.get(
+            target_api,
+            timeout=10,
+            verify=VERIFY_AGENT_TLS,
+            headers=headers,
+        )
 
         # 返回数据
         return jsonify(resp.json()), resp.status_code
@@ -109,6 +186,6 @@ def proxy_request():
         return jsonify({"code": 500, "msg": f"代理服务内部错误: {str(e)}"}), 500
 
 if __name__ == '__main__':
-    print(f"Dashboard Proxy running on port 28456")
+    print(f"Dashboard Proxy running on {DASHBOARD_HOST}:{DASHBOARD_PORT} ({DEPLOYMENT_MODE})")
     print(f"Looking for config at: {CONFIG_FILE}")
-    app.run(host='0.0.0.0', port=28456, debug=False)
+    app.run(host=DASHBOARD_HOST, port=DASHBOARD_PORT, debug=False)

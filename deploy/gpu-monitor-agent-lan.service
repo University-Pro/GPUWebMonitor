@@ -1,0 +1,28 @@
+[Unit]
+Description=GPU Monitor Agent (LAN mode)
+After=network-online.target gpu-monitor-memory-snapshot.timer
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=@SERVICE_USER@
+Group=@SERVICE_GROUP@
+Environment=GPU_MONITOR_DEPLOYMENT_MODE=lan
+Environment=GPU_MONITOR_HOST=0.0.0.0
+Environment=GPU_MONITOR_PORT=15896
+Environment=GPU_MONITOR_MEMORY_SNAPSHOT=/run/gpuwebmonitor-memory/process-memory.json
+WorkingDirectory=@APP_ROOT@/backend
+ExecStart=@PYTHON@ app.py
+Restart=always
+RestartSec=5s
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+
+[Install]
+WantedBy=multi-user.target

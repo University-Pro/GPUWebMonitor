@@ -1,0 +1,12 @@
+{
+  "name": "gpu-web-monitor",
+  "private": true,
+  "scripts": {
+    "build:front": "node scripts/build-front.mjs",
+    "check:front": "node scripts/build-front.mjs --check"
+  },
+  "devDependencies": {
+    "@vue/compiler-dom": "3.5.39",
+    "vue": "3.5.39"
+  }
+}

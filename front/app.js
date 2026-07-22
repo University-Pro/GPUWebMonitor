@@ -9,8 +9,10 @@ const API_BASE_URL = '';
 const REFRESH_INTERVAL = 3000;
 const STALE_AFTER = REFRESH_INTERVAL * 3;
 const MAX_SAMPLES = 20;
+const AUTO_REFRESH_STORAGE_KEY = 'auto-refresh-enabled';
 
 const app = createApp({
+  render: window.GpuMonitorRender,
   components: {
     Monitor, Download, Upload, Sunny, Moon, Sunrise,
     WarningFilled, CircleCheckFilled, Clock, Connection, DataLine,
@@ -34,6 +36,7 @@ const app = createApp({
         themeMenu: { auto: '跟随系统', light: '白天模式', dark: '夜间模式' },
         resources: { title: '系统资源', subtitle: '当前负载与累计网络流量', cpu: 'CPU', memory: '内存', totalReceived: '累计接收', totalSent: '累计发送', recentRate: '近期速率', collecting: '正在收集样本', cores: (n) => `${n} 核`, frequency: '当前频率' },
         trend: { title: '利用率', subtitle: '本次浏览会话 · 最近 20 个采样点', cpu: 'CPU', memory: '内存', gpu: 'GPU 平均', waiting: '至少需要 2 个样本，趋势将在下次刷新后显示', details: '查看采样数据', time: '时间', ranges: { session: '实时', '10m': '10分钟', '30m': '30分钟', '1h': '1小时', '6h': '6小时', '12h': '12小时' }, historySubtitle: (range) => `历史数据 · 最近 ${range}`, loadingHistory: '正在加载历史数据...' },
+        systemProcess: { title: '系统进程', count: (groups, instances) => groups === instances ? `${groups} 个高占用进程` : `${groups} 组 · ${instances} 个实例`, userCount: (n) => `${n} 个用户`, sortCpu: '按 CPU 排序', sortMemory: '按内存排序', sortUser: '按用户汇总', instances: '实例 / PID', instanceCount: '进程实例', groups: '进程组', cpu: '总 CPU 占用', memory: 'PSS 占用', note: '相同用户、进程名和完整命令已合并；CPU 为整机总容量占比，PSS 会按比例分摊共享内存，支持跨进程相加。', userNote: '用户汇总基于该节点全部进程；点击 CPU 或 PSS 表头可切换排名。', empty: '当前没有可显示的系统进程', emptyUser: '当前没有可显示的用户占用数据' },
         gpu: { title: 'GPU 设备', subtitle: '逐卡负载、热状态与进程', emptyTitle: '当前节点未检测到 GPU', emptyDesc: '系统资源仍可正常查看，请确认 NVIDIA 驱动与 NVML 状态。', utilization: '核心利用率', vram: '显存占用', temperature: '温度', power: '实时功耗', powerLimit: '功耗上限', fan: '风扇转速', memoryUtil: '显存控制器', normal: '温度正常', warm: '温度偏高', critical: '温度危险', unknown: '温度未知' },
         process: { title: '计算进程', count: (n) => `${n} 个进程`, pid: 'PID', user: '用户', name: '进程名', memory: '显存占用', command: '命令', empty: '该 GPU 暂无活跃计算进程' },
         units: { cards: (n) => `${n} 张`, unavailable: '不可用' },
@@ -50,6 +53,7 @@ const app = createApp({
         themeMenu: { auto: 'Follow system', light: 'Light mode', dark: 'Dark mode' },
         resources: { title: 'System resources', subtitle: 'Current load and cumulative network traffic', cpu: 'CPU', memory: 'Memory', totalReceived: 'Total received', totalSent: 'Total sent', recentRate: 'Recent rate', collecting: 'Collecting samples', cores: (n) => `${n} cores`, frequency: 'Current frequency' },
         trend: { title: 'Utilization', subtitle: 'This browser session · latest 20 samples', cpu: 'CPU', memory: 'Memory', gpu: 'GPU average', waiting: 'At least 2 samples are needed. The trend will appear after the next refresh.', details: 'View sample data', time: 'Time', ranges: { session: 'Live', '10m': '10min', '30m': '30min', '1h': '1h', '6h': '6h', '12h': '12h' }, historySubtitle: (range) => `History · last ${range}`, loadingHistory: 'Loading history...' },
+        systemProcess: { title: 'System processes', count: (groups, instances) => groups === instances ? `${groups} high-usage processes` : `${groups} groups · ${instances} instances`, userCount: (n) => `${n} users`, sortCpu: 'Sort by CPU', sortMemory: 'Sort by memory', sortUser: 'Group by user', instances: 'Instances / PID', instanceCount: 'Instances', groups: 'Process groups', cpu: 'Total CPU', memory: 'PSS memory', note: 'Same user, process name, and full command are merged. CPU is a share of total machine capacity; PSS proportionally distributes shared memory and is safe to sum.', userNote: 'User totals cover all processes on the node. Click the CPU or PSS heading to change the ranking.', empty: 'No system process is available', emptyUser: 'No user usage data is available' },
         gpu: { title: 'GPU devices', subtitle: 'Per-device workload, thermal state, and processes', emptyTitle: 'No GPU detected on this node', emptyDesc: 'System resources remain available. Check the NVIDIA driver and NVML status.', utilization: 'Core utilization', vram: 'VRAM used', temperature: 'Temperature', power: 'Live power', powerLimit: 'Power limit', fan: 'Fan speed', memoryUtil: 'Memory controller', normal: 'Temperature normal', warm: 'Temperature high', critical: 'Temperature critical', unknown: 'Temperature unavailable' },
         process: { title: 'Compute processes', count: (n) => `${n} processes`, pid: 'PID', user: 'User', name: 'Process', memory: 'GPU memory', command: 'Command', empty: 'No active compute process on this GPU' },
         units: { cards: (n) => `${n} cards`, unavailable: 'Unavailable' },
@@ -66,6 +70,7 @@ const app = createApp({
         themeMenu: { auto: 'システムに従う', light: 'ライトモード', dark: 'ダークモード' },
         resources: { title: 'システムリソース', subtitle: '現在の負荷と累積ネットワーク通信量', cpu: 'CPU', memory: 'メモリ', totalReceived: '累積受信', totalSent: '累積送信', recentRate: '直近の速度', collecting: 'サンプル収集中', cores: (n) => `${n} コア`, frequency: '現在の周波数' },
         trend: { title: '使用率', subtitle: 'このブラウザーセッション · 最新 20 サンプル', cpu: 'CPU', memory: 'メモリ', gpu: 'GPU 平均', waiting: '2 件以上のサンプルが必要です。次回更新後に表示されます。', details: 'サンプルデータを表示', time: '時刻', ranges: { session: 'リアルタイム', '10m': '10分', '30m': '30分', '1h': '1時間', '6h': '6時間', '12h': '12時間' }, historySubtitle: (range) => `履歴データ · 直近 ${range}`, loadingHistory: '履歴データを読み込み中...' },
+        systemProcess: { title: 'システムプロセス', count: (groups, instances) => groups === instances ? `高負荷 ${groups} プロセス` : `${groups} グループ · ${instances} インスタンス`, userCount: (n) => `${n} ユーザー`, sortCpu: 'CPU 順', sortMemory: 'メモリ順', sortUser: 'ユーザー集計', instances: 'インスタンス / PID', instanceCount: 'インスタンス', groups: 'プロセスグループ', cpu: '合計 CPU', memory: 'PSS メモリ', note: '同じユーザー、プロセス名、完全なコマンドを統合しています。CPU はマシン全体に対する割合、PSS は共有メモリを比例配分するため合計できます。', userNote: 'ユーザー集計はノード上の全プロセスが対象です。CPU または PSS の見出しをクリックして順位を切り替えられます。', empty: '表示できるシステムプロセスはありません', emptyUser: 'ユーザー使用量データがありません' },
         gpu: { title: 'GPU デバイス', subtitle: 'デバイス別の負荷、温度、プロセス', emptyTitle: 'このノードで GPU が検出されません', emptyDesc: 'システムリソースは表示できます。NVIDIA ドライバーと NVML を確認してください。', utilization: 'コア使用率', vram: 'VRAM 使用量', temperature: '温度', power: '現在の電力', powerLimit: '電力上限', fan: 'ファン速度', memoryUtil: 'メモリコントローラー', normal: '温度正常', warm: '温度高め', critical: '温度危険', unknown: '温度不明' },
         process: { title: '計算プロセス', count: (n) => `${n} プロセス`, pid: 'PID', user: 'ユーザー', name: 'プロセス', memory: 'GPU メモリ', command: 'コマンド', empty: 'この GPU にアクティブな計算プロセスはありません' },
         units: { cards: (n) => `${n} 枚`, unavailable: '利用不可' },
@@ -82,7 +87,7 @@ const app = createApp({
     const configError = ref('');
     const nodeError = ref('');
     const lastUpdateAt = ref(null);
-    const autoRefresh = ref(false);
+    const autoRefresh = ref(true);
     const refreshTimer = ref(null);
     const currentLocale = ref('zh');
     const currentTheme = ref('auto');
@@ -96,7 +101,8 @@ const app = createApp({
     const trendSliderValue = ref(100);
     const historySamples = ref([]);
     const historyLoading = ref(false);
-    let savedAutoRefresh = false;
+    const systemProcessSort = ref('cpu');
+    let savedAutoRefresh = true;
     let historyAbortController = null;
     let freshnessTimer = null;
     let themeMediaQuery = null;
@@ -114,6 +120,21 @@ const app = createApp({
     const themeIcon = computed(() => currentTheme.value === 'light' ? Sunny : currentTheme.value === 'dark' ? Moon : Sunrise);
     const selectedServer = computed(() => servers.value.find((server) => server.id === selectedServerId.value));
     const gpuList = computed(() => currentData.value?.gpu?.gpus || []);
+    const sortedSystemProcesses = computed(() => {
+      const processes = [...(currentData.value?.system?.processes || [])];
+      if (systemProcessSort.value === 'memory') {
+        return processes.sort((a, b) => (b.memory_bytes - a.memory_bytes) || (b.cpu_percent - a.cpu_percent));
+      }
+      return processes.sort((a, b) => (b.cpu_percent - a.cpu_percent) || (b.memory_bytes - a.memory_bytes));
+    });
+    const systemUsers = computed(() => currentData.value?.system?.users || []);
+    const systemProcessInstanceCount = computed(() => sortedSystemProcesses.value.reduce(
+      (sum, process) => sum + Math.max(1, safeNumber(process.instance_count)),
+      0,
+    ));
+    const setSystemProcessSort = (sort) => {
+      if (sort === 'cpu' || sort === 'memory' || sort === 'user') systemProcessSort.value = sort;
+    };
 
     const finiteNumber = (value, fallback = null) => {
       if (value === '' || value === null || value === undefined) return fallback;
@@ -139,6 +160,8 @@ const app = createApp({
     const formatFrequency = (mhz) => finiteNumber(mhz) === null ? translate('units.unavailable') : `${formatNumber(mhz / 1000, 1)} GHz`;
     const formatPower = (milliwatts) => finiteNumber(milliwatts) === null ? translate('units.unavailable') : `${formatNumber(milliwatts / 1000, 0)} W`;
     const formatTemperature = (value) => finiteNumber(value) === null ? translate('units.unavailable') : `${formatNumber(value, 0)} °C`;
+    const formatProcessInstances = (process) => process.instance_count > 1 ? `${process.instance_count} ×` : `${process.pid}`;
+    const formatProcessPids = (process) => (process.pids || [process.pid]).map((pid) => `PID ${pid}`).join(', ');
     const calcMemoryPercent = (gpu) => {
       if (!gpu?.memory || !finiteNumber(gpu.memory.total)) return 0;
       return Math.round(clampPercent((safeNumber(gpu.memory.used) / gpu.memory.total) * 100));
@@ -158,6 +181,32 @@ const app = createApp({
       const cpu = system.cpu || {};
       const memory = system.memory || {};
       const network = system.network || {};
+      const systemProcesses = Array.isArray(system.processes) ? system.processes.map((process) => {
+        const pid = process?.pid ?? '—';
+        const pids = Array.isArray(process?.pids) && process.pids.length ? process.pids : [pid];
+        return {
+          pid,
+          pids,
+          instance_count: Math.max(1, safeNumber(process?.instance_count) || pids.length),
+          username: process?.username || '—',
+          name: process?.name || '—',
+          cpu_percent: clampPercent(process?.cpu_percent),
+          memory_percent: clampPercent(process?.memory_percent),
+          memory_bytes: Math.max(0, safeNumber(process?.memory_bytes ?? process?.memory_rss)),
+          memory_rss: Math.max(0, safeNumber(process?.memory_rss)),
+          memory_metric: process?.memory_metric || 'rss',
+          command: process?.command || process?.name || '—',
+        };
+      }) : [];
+      const systemUsers = Array.isArray(system.users) ? system.users.map((user) => ({
+        username: user?.username || '—',
+        cpu_percent: clampPercent(user?.cpu_percent),
+        memory_percent: clampPercent(user?.memory_percent),
+        memory_bytes: Math.max(0, safeNumber(user?.memory_bytes ?? user?.memory_rss)),
+        memory_metric: user?.memory_metric || 'rss',
+        process_group_count: Math.max(0, safeNumber(user?.process_group_count)),
+        instance_count: Math.max(0, safeNumber(user?.instance_count)),
+      })) : [];
       const rawGpus = Array.isArray(raw.gpu?.gpus) ? raw.gpu.gpus : [];
       const gpus = rawGpus.map((gpu, position) => {
         const gpuMemory = gpu?.memory || {};
@@ -187,6 +236,9 @@ const app = createApp({
           cpu: { percent: clampPercent(cpu.percent), count: finiteNumber(cpu.count, 0), frequency_current: finiteNumber(cpu.frequency_current) },
           memory: { percent: clampPercent(memory.percent), used: finiteNumber(memory.used, 0), total: finiteNumber(memory.total, 0) },
           network: { bytes_recv: finiteNumber(network.bytes_recv, 0), bytes_sent: finiteNumber(network.bytes_sent, 0) },
+          processes: systemProcesses,
+          users: systemUsers,
+          process_memory_metric: system.process_memory_metric || 'mixed',
         },
         gpu: { gpus, summary: {
           avg_gpu_utilization: finiteNumber(summary.avg_gpu_utilization, derived.avg_gpu_utilization),
@@ -446,9 +498,17 @@ const app = createApp({
       loadSelectedServerData('initial');
     };
     const refreshCurrent = () => loadSelectedServerData('manual');
-    const toggleAutoRefresh = () => autoRefresh.value ? scheduleRefresh() : clearRefreshTimer();
+    const toggleAutoRefresh = () => {
+      savedAutoRefresh = autoRefresh.value;
+      localStorage.setItem(AUTO_REFRESH_STORAGE_KEY, String(autoRefresh.value));
+      if (autoRefresh.value) scheduleRefresh();
+      else clearRefreshTimer();
+    };
 
     onMounted(() => {
+      const storedAutoRefresh = localStorage.getItem(AUTO_REFRESH_STORAGE_KEY);
+      autoRefresh.value = storedAutoRefresh === null ? true : storedAutoRefresh === 'true';
+      savedAutoRefresh = autoRefresh.value;
       currentTheme.value = localStorage.getItem('theme-preference') || 'auto';
       applyTheme(currentTheme.value);
       const browserLocale = (navigator.language || '').toLowerCase();
@@ -467,13 +527,13 @@ const app = createApp({
     });
 
     return {
-      servers, selectedServerId, selectedServer, currentData, gpuList, loading, configLoading, configError, nodeError,
+      servers, selectedServerId, selectedServer, currentData, gpuList, sortedSystemProcesses, systemUsers, systemProcessInstanceCount, systemProcessSort, loading, configLoading, configError, nodeError,
       autoRefresh, currentLocale, currentTheme, localeText, themeText, themeIcon, RefreshIcon,
       currentSamples, networkRates, trendSeries, activeTrendSample, connectionState, relativeUpdate, lastUpdateTime,
       trendRange, trendRanges, historyLoading,
-      translate, safeNumber, formatNumber, formatPercent, formatBytes, formatFrequency, formatPower, formatTemperature,
+      translate, safeNumber, formatNumber, formatPercent, formatBytes, formatFrequency, formatPower, formatTemperature, formatProcessInstances, formatProcessPids,
       calcMemoryPercent, getTempStatus, getValColorClass, getTemperatureState,
-      updateTrendHover, clearTrendHover, setTrendRange,
+      updateTrendHover, clearTrendHover, setTrendRange, setSystemProcessSort,
       handleThemeChange, handleLocaleChange, handleServerChange, refreshCurrent, toggleAutoRefresh, loadConfig,
     };
   },

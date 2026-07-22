@@ -1,5 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
 :root {
   color-scheme: light;
   --page: #f4f7fb;
@@ -72,7 +70,7 @@ body {
     radial-gradient(circle at 90% -10%, color-mix(in srgb, var(--brand) 12%, transparent), transparent 34rem),
     linear-gradient(180deg, var(--page-accent) 0, var(--page) 22rem);
   color: var(--ink);
-  font-family: "Noto Sans SC", "Segoe UI", system-ui, sans-serif;
+  font-family: "SF Pro Text", "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 button, input, select { font: inherit; }
@@ -218,6 +216,14 @@ button, input, select { font: inherit; }
 .process-title { display: flex; align-items: center; gap: 9px; }
 .process-title strong { color: var(--ink); font-size: 12px; }
 .process-title span { color: var(--ink-muted); font-size: 10px; }
+.system-process-panel { padding: 0; overflow: hidden; }
+.system-process-collapse .el-collapse-item__header { min-height: 58px; }
+.system-process-heading { display: flex; align-items: center; justify-content: space-between; gap: 16px; width: 100%; padding-right: 12px; }
+.system-process-heading .process-title strong { font-size: 14px; }
+.system-process-heading .process-title span { font-size: 11px; }
+.system-process-sort { flex: 0 0 auto; }
+.system-process-sort .el-button { min-width: 104px; }
+.system-process-note { margin: 0; padding: 12px 20px 4px; color: var(--ink-muted); font-size: 11px; line-height: 1.6; }
 .mobile-process-list { display: none; }
 code { color: var(--ink-secondary); font-family: "SFMono-Regular", Consolas, monospace; font-size: 11px; }
 
@@ -311,6 +317,10 @@ code { color: var(--ink-secondary); font-family: "SFMono-Regular", Consolas, mon
   .sensor-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .desktop-process-table { display: none; }
   .mobile-process-list { display: grid; gap: 10px; }
+  .system-process-heading { align-items: flex-start; flex-direction: column; gap: 9px; padding: 10px 8px 10px 0; }
+  .system-process-sort { width: 100%; }
+  .system-process-sort .el-button { flex: 1; min-width: 0; }
+  .system-process-collapse .el-collapse-item__header { height: auto; min-height: 78px; }
   .process-card { padding: 13px; background: var(--surface-subtle); border: 1px solid var(--border); border-radius: var(--radius-sm); }
   .process-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
   .process-card__head strong { min-width: 0; overflow-wrap: anywhere; font-size: 12px; }
