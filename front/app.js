@@ -33,7 +33,7 @@ const app = createApp({
         theme: { auto: '自动', light: '白天', dark: '夜间' },
         themeMenu: { auto: '跟随系统', light: '白天模式', dark: '夜间模式' },
         resources: { title: '系统资源', subtitle: '当前负载与累计网络流量', cpu: 'CPU', memory: '内存', totalReceived: '累计接收', totalSent: '累计发送', recentRate: '近期速率', collecting: '正在收集样本', cores: (n) => `${n} 核`, frequency: '当前频率' },
-        trend: { title: '利用率', subtitle: '本次浏览会话 · 最近 20 个采样点', cpu: 'CPU', memory: '内存', gpu: 'GPU 平均', waiting: '至少需要 2 个样本，趋势将在下次刷新后显示', details: '查看采样数据', time: '时间', ranges: { session: '实时', '10m': '10分钟', '30m': '30分钟', '1h': '1小时', '6h': '6小时', '12h': '12小时' }, historySubtitle: (range) => `历史数据 · 最近 ${range}`, loadingHistory: '正在加载历史数据...' },
+        trend: { title: '利用率', subtitle: '本次浏览会话 · 最近 20 个采样点', cpu: 'CPU', memory: '内存', gpu: 'GPU 平均', gpuN: (n) => `GPU ${n}`, waiting: '至少需要 2 个样本，趋势将在下次刷新后显示', details: '查看采样数据', time: '时间', ranges: { session: '实时', '10m': '10分钟', '30m': '30分钟', '1h': '1小时', '6h': '6小时', '12h': '12小时' }, historySubtitle: (range) => `历史数据 · 最近 ${range}`, loadingHistory: '正在加载历史数据...' },
         gpu: { title: 'GPU 设备', subtitle: '逐卡负载、热状态与进程', emptyTitle: '当前节点未检测到 GPU', emptyDesc: '系统资源仍可正常查看，请确认 NVIDIA 驱动与 NVML 状态。', utilization: '核心利用率', vram: '显存占用', temperature: '温度', power: '实时功耗', powerLimit: '功耗上限', fan: '风扇转速', memoryUtil: '显存控制器', normal: '温度正常', warm: '温度偏高', critical: '温度危险', unknown: '温度未知' },
         process: { title: '计算进程', count: (n) => `${n} 个进程`, pid: 'PID', user: '用户', name: '进程名', memory: '显存占用', command: '命令', empty: '该 GPU 暂无活跃计算进程' },
         units: { cards: (n) => `${n} 张`, unavailable: '不可用' },
@@ -49,7 +49,7 @@ const app = createApp({
         theme: { auto: 'Auto', light: 'Light', dark: 'Dark' },
         themeMenu: { auto: 'Follow system', light: 'Light mode', dark: 'Dark mode' },
         resources: { title: 'System resources', subtitle: 'Current load and cumulative network traffic', cpu: 'CPU', memory: 'Memory', totalReceived: 'Total received', totalSent: 'Total sent', recentRate: 'Recent rate', collecting: 'Collecting samples', cores: (n) => `${n} cores`, frequency: 'Current frequency' },
-        trend: { title: 'Utilization', subtitle: 'This browser session · latest 20 samples', cpu: 'CPU', memory: 'Memory', gpu: 'GPU average', waiting: 'At least 2 samples are needed. The trend will appear after the next refresh.', details: 'View sample data', time: 'Time', ranges: { session: 'Live', '10m': '10min', '30m': '30min', '1h': '1h', '6h': '6h', '12h': '12h' }, historySubtitle: (range) => `History · last ${range}`, loadingHistory: 'Loading history...' },
+        trend: { title: 'Utilization', subtitle: 'This browser session · latest 20 samples', cpu: 'CPU', memory: 'Memory', gpu: 'GPU average', gpuN: (n) => `GPU ${n}`, waiting: 'At least 2 samples are needed. The trend will appear after the next refresh.', details: 'View sample data', time: 'Time', ranges: { session: 'Live', '10m': '10min', '30m': '30min', '1h': '1h', '6h': '6h', '12h': '12h' }, historySubtitle: (range) => `History · last ${range}`, loadingHistory: 'Loading history...' },
         gpu: { title: 'GPU devices', subtitle: 'Per-device workload, thermal state, and processes', emptyTitle: 'No GPU detected on this node', emptyDesc: 'System resources remain available. Check the NVIDIA driver and NVML status.', utilization: 'Core utilization', vram: 'VRAM used', temperature: 'Temperature', power: 'Live power', powerLimit: 'Power limit', fan: 'Fan speed', memoryUtil: 'Memory controller', normal: 'Temperature normal', warm: 'Temperature high', critical: 'Temperature critical', unknown: 'Temperature unavailable' },
         process: { title: 'Compute processes', count: (n) => `${n} processes`, pid: 'PID', user: 'User', name: 'Process', memory: 'GPU memory', command: 'Command', empty: 'No active compute process on this GPU' },
         units: { cards: (n) => `${n} cards`, unavailable: 'Unavailable' },
@@ -65,7 +65,7 @@ const app = createApp({
         theme: { auto: '自動', light: 'ライト', dark: 'ダーク' },
         themeMenu: { auto: 'システムに従う', light: 'ライトモード', dark: 'ダークモード' },
         resources: { title: 'システムリソース', subtitle: '現在の負荷と累積ネットワーク通信量', cpu: 'CPU', memory: 'メモリ', totalReceived: '累積受信', totalSent: '累積送信', recentRate: '直近の速度', collecting: 'サンプル収集中', cores: (n) => `${n} コア`, frequency: '現在の周波数' },
-        trend: { title: '使用率', subtitle: 'このブラウザーセッション · 最新 20 サンプル', cpu: 'CPU', memory: 'メモリ', gpu: 'GPU 平均', waiting: '2 件以上のサンプルが必要です。次回更新後に表示されます。', details: 'サンプルデータを表示', time: '時刻', ranges: { session: 'リアルタイム', '10m': '10分', '30m': '30分', '1h': '1時間', '6h': '6時間', '12h': '12時間' }, historySubtitle: (range) => `履歴データ · 直近 ${range}`, loadingHistory: '履歴データを読み込み中...' },
+        trend: { title: '使用率', subtitle: 'このブラウザーセッション · 最新 20 サンプル', cpu: 'CPU', memory: 'メモリ', gpu: 'GPU 平均', gpuN: (n) => `GPU ${n}`, waiting: '2 件以上のサンプルが必要です。次回更新後に表示されます。', details: 'サンプルデータを表示', time: '時刻', ranges: { session: 'リアルタイム', '10m': '10分', '30m': '30分', '1h': '1時間', '6h': '6時間', '12h': '12時間' }, historySubtitle: (range) => `履歴データ · 直近 ${range}`, loadingHistory: '履歴データを読み込み中...' },
         gpu: { title: 'GPU デバイス', subtitle: 'デバイス別の負荷、温度、プロセス', emptyTitle: 'このノードで GPU が検出されません', emptyDesc: 'システムリソースは表示できます。NVIDIA ドライバーと NVML を確認してください。', utilization: 'コア使用率', vram: 'VRAM 使用量', temperature: '温度', power: '現在の電力', powerLimit: '電力上限', fan: 'ファン速度', memoryUtil: 'メモリコントローラー', normal: '温度正常', warm: '温度高め', critical: '温度危険', unknown: '温度不明' },
         process: { title: '計算プロセス', count: (n) => `${n} プロセス`, pid: 'PID', user: 'ユーザー', name: 'プロセス', memory: 'GPU メモリ', command: 'コマンド', empty: 'この GPU にアクティブな計算プロセスはありません' },
         units: { cards: (n) => `${n} 枚`, unavailable: '利用不可' },
@@ -220,17 +220,40 @@ const app = createApp({
       const start = Math.round(trendSliderValue.value / 100 * maxStart);
       return all.slice(start, start + windowSize);
     });
+    const gpuSampleValue = (sample, key) => {
+      if (key.startsWith('gpu-')) {
+        const idx = parseInt(key.slice(4), 10);
+        if (Array.isArray(sample.gpuUtils)) return sample.gpuUtils[idx] ?? 0;
+        return sample[key] ?? 0;
+      }
+      return sample[key];
+    };
     const trendSeries = computed(() => {
       const samples = visibleTrendSamples.value;
       if (samples.length < 2) return [];
       const width = 600;
       const height = 180;
-      const pointsFor = (key) => samples.map((sample, index) => `${(index / (samples.length - 1)) * width},${height - clampPercent(sample[key]) / 100 * height}`).join(' ');
-      return [
+      const pointsFor = (key) => samples.map((sample, index) => {
+        const value = clampPercent(gpuSampleValue(sample, key));
+        return `${(index / (samples.length - 1)) * width},${height - value / 100 * height}`;
+      }).join(' ');
+      const series = [
         { key: 'cpu', label: translate('trend.cpu'), points: pointsFor('cpu') },
         { key: 'memory', label: translate('trend.memory'), points: pointsFor('memory') },
-        { key: 'gpu', label: translate('trend.gpu'), points: pointsFor('gpu') },
       ];
+      let gpuCount = 0;
+      for (const s of samples) {
+        if (Array.isArray(s.gpuUtils)) gpuCount = Math.max(gpuCount, s.gpuUtils.length);
+        else if (s.gpuCount) gpuCount = Math.max(gpuCount, s.gpuCount);
+      }
+      if (gpuCount <= 1) {
+        series.push({ key: 'gpu', label: translate('trend.gpu'), points: pointsFor('gpu') });
+      } else {
+        for (let i = 0; i < gpuCount; i++) {
+          series.push({ key: `gpu-${i}`, label: translate('trend.gpuN', i), points: pointsFor(`gpu-${i}`) });
+        }
+      }
+      return series;
     });
     const activeTrendSample = computed(() => {
       const samples = visibleTrendSamples.value;
@@ -243,12 +266,15 @@ const app = createApp({
         x,
         position: `${x / 6}%`,
         time: new Date(sample.time).toLocaleTimeString(localeMap[currentLocale.value].htmlLang, { hour12: false }),
-        values: trendSeries.value.map((series) => ({
-          key: series.key,
-          label: series.label,
-          value: formatPercent(sample[series.key], 1),
-          y: 180 - clampPercent(sample[series.key]) / 100 * 180,
-        })),
+        values: trendSeries.value.map((series) => {
+          const val = clampPercent(gpuSampleValue(sample, series.key));
+          return {
+            key: series.key,
+            label: series.label,
+            value: formatPercent(val, 1),
+            y: 180 - val / 100 * 180,
+          };
+        }),
       };
     });
     const updateTrendHover = (event) => {
@@ -276,12 +302,18 @@ const app = createApp({
         const resp = await fetchApi(`/api/proxy?id=${encodeURIComponent(serverId)}&history=1&limit=${limit}`, { signal: historyAbortController.signal });
         const result = await readResponse(resp);
         if (result.code !== 200) throw new Error(result.msg);
-        historySamples.value = (result.data || []).map((row) => ({
-          time: new Date(row.timestamp).getTime(),
-          cpu: clampPercent(row.cpu_percent),
-          memory: clampPercent(row.memory_percent),
-          gpu: clampPercent(row.summary?.avg_gpu_utilization ?? 0),
-        }));
+        historySamples.value = (result.data || []).map((row) => {
+          const gpus = Array.isArray(row.gpus) ? row.gpus : [];
+          const gpuUtils = gpus.map((g) => clampPercent(g?.utilization?.gpu ?? 0));
+          return {
+            time: new Date(row.timestamp).getTime(),
+            cpu: clampPercent(row.cpu_percent),
+            memory: clampPercent(row.memory_percent),
+            gpu: clampPercent(row.summary?.avg_gpu_utilization ?? 0),
+            gpuUtils,
+            gpuCount: gpus.length,
+          };
+        });
         trendSliderValue.value = 100;
       } catch (e) {
         if (e.name !== 'AbortError') historySamples.value = [];
@@ -357,9 +389,10 @@ const app = createApp({
       return result;
     };
     const recordSample = (serverId, data) => {
+      const gpuUtils = (data.gpu.gpus || []).map((g) => g.utilization.gpu);
       const sample = {
         time: Date.now(), cpu: data.system.cpu.percent, memory: data.system.memory.percent,
-        gpu: data.gpu.summary.avg_gpu_utilization, received: data.system.network.bytes_recv, sent: data.system.network.bytes_sent,
+        gpu: data.gpu.summary.avg_gpu_utilization, gpuUtils, received: data.system.network.bytes_recv, sent: data.system.network.bytes_sent,
       };
       const existing = samplesByServer.value[serverId] || [];
       samplesByServer.value = { ...samplesByServer.value, [serverId]: [...existing, sample].slice(-MAX_SAMPLES) };
